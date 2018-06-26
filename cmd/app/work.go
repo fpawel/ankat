@@ -1,12 +1,11 @@
 package main
 
 import (
+	"github.com/fpawel/ankat/data/dataproducts"
+	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/pkg/errors"
-	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/ankat/data/dataworks"
-	"time"
-	"github.com/fpawel/ankat/data/dataproducts"
 )
 
 func (x app) runWork(w uiworks.Work) {
@@ -44,7 +43,6 @@ func (x *app) comportProduct(p Product, logger logger) (*comport.Port, error) {
 	return a.comport, a.err
 }
 
-
 func (x app) sendCmd(cmd uint16, value float64) error {
 	x.workCtrl.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
 		x.data.formatCmd(cmd), value)
@@ -57,17 +55,7 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 func (x app) runReadVarsWork() {
 
 	x.runWork(uiworks.S("Опрос", func() error {
-		x.data.dbProducts.MustExec(`
-INSERT INTO  series (party_id, name)
-VALUES ( (SELECT party_id FROM current_party), 'Опрос' );
-`)
-		var series struct{
-			PartyID     dataproducts.PartyID `db:"party_id"`
-			CreatedAt   time.Time   `db:"created_at"`
-			SeriesID int64      `db:"series_id"`
-		}
-		dbMustGet(x.data.dbProducts, series, `SELECT * FROM last_series`)
-
+		dataproducts.CreateNewSeries(x.data.dbProducts, "Опрос")
 		for !x.workCtrl.Interrupted() {
 			if err := x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
 				if len(x.data.CheckedVars()) == 0 {
@@ -79,16 +67,8 @@ VALUES ( (SELECT party_id FROM current_party), 'Опрос' );
 					}
 					value, err := p.readVar(v.Var)
 					if err == nil {
-						x.data.dbProducts.MustExec(`
-INSERT INTO chart_value (series_id, product_serial, read_var_id, x, y)
-VALUES
-  ( (SELECT series_id FROM last_series), $1, $2,
-    (SELECT (julianday(DATETIME('NOW'))  -
-             julianday( (SELECT created_at FROM last_series) ))),
-    $3 );;
-`, p.product.Serial, v.Var, value)
+						dataproducts.AddChartValue(x.data.dbProducts, p.product.Serial, v.Var, value)
 					}
-
 				}
 				return nil
 			}); err != nil {

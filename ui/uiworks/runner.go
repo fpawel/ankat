@@ -39,7 +39,7 @@ type notifyWork struct {
 }
 
 type endWork struct {
-	Name string
+	Name  string
 	Error error
 }
 
@@ -95,7 +95,6 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 
 	var currentRunTask *Task
 
-
 	writeLog := func(m dataworks.WriteRecord) {
 		if !workLogWritten {
 			dataworks.AddRootWork(dbLog, rootTask.name)
@@ -139,6 +138,11 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 				panic("run twice")
 			}
 			task := w.Task()
+
+			if rootTask.Text() != task.Text() {
+				x.delphiApp.Send("SETUP_CURRENT_WORKS", task.Info(dbLog))
+			}
+
 			rootTask = task
 			currentRunTask = task
 
@@ -151,7 +155,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 				err := w.Action()
 				x.chEndWork <- endWork{
 					Error: err,
-					Name:w.Name,
+					Name:  w.Name,
 				}
 				x.notifyWork(task, false)
 			}()
@@ -163,9 +167,9 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			rootTask = mainTask
 			m := rootTask.GetTaskByOrdinal(rm.Ordinal)
 			if !m.Checked(dbConfig) {
-				x.delphiApp.Send("ERROR", struct{
+				x.delphiApp.Send("ERROR", struct {
 					Text string
-				} {m.Text() + ": операция не отмечена"})
+				}{m.Text() + ": операция не отмечена"})
 				continue
 			}
 
@@ -175,7 +179,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			go func() {
 				x.chEndWork <- endWork{
 					Error: m.perform(x, dbConfig),
-					Name:   m.name,
+					Name:  m.name,
 				}
 			}()
 
@@ -240,17 +244,15 @@ func (x Runner) SubscribeInterrupted(ch chan struct{}, subscribe bool) {
 
 func (x Runner) WriteLog(productSerial int, level dataworks.Level, text string) {
 	x.chWriteLog <- dataworks.WriteRecord{
-		Level: level,
-		Text:  text,
-		ProductSerial:productSerial,
+		Level:         level,
+		Text:          text,
+		ProductSerial: productSerial,
 	}
 }
 
 func (x Runner) WriteLogf(productSerial int, level dataworks.Level, format string, a ...interface{}) {
-	x.WriteLog(productSerial, level, fmt.Sprintf(format,a...))
+	x.WriteLog(productSerial, level, fmt.Sprintf(format, a...))
 }
-
-
 
 func (x Runner) Delay(name string, duration time.Duration, backgroundWork func() error) error {
 	timer := time.NewTimer(duration)
