@@ -20,7 +20,6 @@ CREATE VIEW IF NOT EXISTS party_year_month AS
   FROM party
   ORDER BY created_at;
 
-
 CREATE VIEW IF NOT EXISTS party_year_month_day AS
   SELECT DISTINCT
     cast(strftime('%Y', created_at) AS INT) as year,
@@ -28,7 +27,6 @@ CREATE VIEW IF NOT EXISTS party_year_month_day AS
     cast(strftime('%d', created_at) AS INT) as day
   FROM party
   ORDER BY created_at;
-
 
 CREATE TABLE IF NOT EXISTS product (
   party_id INTEGER NOT NULL,
@@ -133,6 +131,11 @@ CREATE TABLE IF NOT EXISTS product_read_value(
   REFERENCES product(party_id, product_serial) ON DELETE CASCADE
 );
 
+INSERT OR IGNORE INTO party(party_id)  VALUES(1);
+INSERT OR IGNORE INTO product(party_id, product_serial) VALUES ( 1,1);
+`
+
+const SQLAnkatPartyInfo = `
 CREATE VIEW IF NOT EXISTS party_info AS
   SELECT
 	created_at,
@@ -154,6 +157,9 @@ CREATE VIEW IF NOT EXISTS party_info AS
     INNER JOIN party_value d on p.party_id = d.party_id and d.var = 'sensors_count'
     INNER JOIN party_value e on p.party_id = e.party_id and e.var = 'scale1'
     INNER JOIN party_value g on p.party_id = g.party_id and g.var = 'scale2';
+`
+
+const SQLAnkatVars = `
 
 INSERT OR IGNORE  INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
   (0, 'product_type_number', 'номер исполнения', 'integer', 1, NULL , 10),
@@ -171,10 +177,45 @@ INSERT OR IGNORE  INTO party_var(sort_order, var, name, type, min, max, def_val)
   (12, 't-', 'T-,"С', 'real', NULL, NULL, -30 ),
   (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
 
+INSERT OR IGNORE INTO read_var (read_var_id, name, description) VALUES
+  (0, 'CCh0', 'концентрация - канал 1 (электрохимия 1)'),
+  (2, 'CCh1', 'концентрация - канал 2 (электрохимия 2/оптика 1)'),
+  (4, 'CCh2', 'концентрация - канал 3 (оптика 1/оптика 2)'),
+  (6, 'PkPa', 'давление, кПа'),
+  (8, 'Pmm', 'давление, мм. рт. ст'),
+  (10, 'Tmcu', 'температура микроконтроллера, град.С'),
+  (12, 'Vbat', 'напряжение аккумуляторной батареи, В'),
+  (14, 'Vref', 'опорное напряжение для электрохимии, В'),
+  (16, 'Vmcu', 'напряжение питания микроконтроллера, В'),
+  (18, 'VdatP', 'напряжение на выходе датчика давления, В'),
+  (640, 'CoutCh0', 'концентрация - первый канал оптики'),
+  (642, 'TppCh0', 'температура пироприемника - первый канал оптики'),
+  (644, 'ILOn0', 'лампа ВКЛ - первый канал оптики'),
+  (646, 'ILOff0', 'лампа ВЫКЛ - первый канал оптики'),
+  (648, 'Uw_Ch0', 'значение исходного сигнала в рабочем канале (АЦП) - первый канал оптики'),
+  (650, 'Ur_Ch0', 'значение исходного сигнала в опорном канале (АЦП) - первый канал оптики'),
+  (652, 'WORK0', 'значение нормализованного сигнала в рабочем канале (АЦП) - первый канал оптики'),
+  (654, 'REF0', 'значение нормализованного сигнала в опроном канале (АЦП) - первый канал оптики'),
+  (656, 'Var1Ch0', 'значение дифференциального сигнала - первый канал оптики'),
+  (658, 'Var2Ch0', 'значение дифференциального сигнала с поправкой по нулю от температуры - первый канал оптики'),
+  (660, 'Var3Ch0', 'значение дифференциального сигнала с поправкой по чувствительности от температуры - первый канал оптики'),
+  (662, 'FppCh0', 'частота преобразования АЦП - первый канал оптики'),
+  (672, 'CoutCh1', 'концентрация - второй канал оптики'),
+  (674, 'TppCh1', 'температура пироприемника - второй канал оптики'),
+  (676, 'ILOn1', 'лампа ВКЛ - второй канал оптики'),
+  (678, 'ILOff1', 'лампа ВЫКЛ - второй канал оптики'),
+  (680, 'Uw_Ch1', 'значение исходного сигнала в рабочем канале (АЦП) - второй канал оптики'),
+  (682, 'Ur_Ch1', 'значение исходного сигнала в опорном канале (АЦП) - второй канал оптики'),
+  (684, 'WORK1', 'значение нормализованного сигнала в рабочем канале (АЦП) - второй канал оптики'),
+  (686, 'REF1', 'значение нормализованного сигнала в опроном канале (АЦП) - второй канал оптики'),
+  (688, 'Var1Ch1', 'значение дифференциального сигнала - второй канал оптики'),
+  (690, 'Var2Ch1', 'значение дифференциального сигнала с поправкой по нулю от температуры - второй канал оптики'),
+  (692, 'Var3Ch1', 'значение дифференциального сигнала с поправкой по чувствительности от температуры - второй канал оптики'),
+  (694, 'FppCh1', 'частота преобразования АЦП - второй канал оптики');
 
-INSERT OR IGNORE INTO party(party_id)  VALUES(1);
-INSERT OR IGNORE INTO product(party_id, product_serial) VALUES ( 1,1);
+`
 
+const SQLWorks = `
 CREATE TABLE IF NOT EXISTS work_log (
   record_id INTEGER PRIMARY KEY,
   parent_record_id INTEGER,
@@ -215,42 +256,6 @@ CREATE VIEW IF NOT EXISTS last_work_log AS
   SELECT * FROM work_log
   WHERE created_at >= (SELECT created_at FROM last_work_log_root)
   ORDER BY created_at;
-
-INSERT OR IGNORE INTO read_var (read_var_id, name, description) VALUES
-  (0, 'CCh0', 'концентрация - канал 1 (электрохимия 1)'),
-  (2, 'CCh1', 'концентрация - канал 2 (электрохимия 2/оптика 1)'),
-  (4, 'CCh2', 'концентрация - канал 3 (оптика 1/оптика 2)'),
-  (6, 'PkPa', 'давление, кПа'),
-  (8, 'Pmm', 'давление, мм. рт. ст'),
-  (10, 'Tmcu', 'температура микроконтроллера, град.С'),
-  (12, 'Vbat', 'напряжение аккумуляторной батареи, В'),
-  (14, 'Vref', 'опорное напряжение для электрохимии, В'),
-  (16, 'Vmcu', 'напряжение питания микроконтроллера, В'),
-  (18, 'VdatP', 'напряжение на выходе датчика давления, В'),
-  (640, 'CoutCh0', 'концентрация - первый канал оптики'),
-  (642, 'TppCh0', 'температура пироприемника - первый канал оптики'),
-  (644, 'ILOn0', 'лампа ВКЛ - первый канал оптики'),
-  (646, 'ILOff0', 'лампа ВЫКЛ - первый канал оптики'),
-  (648, 'Uw_Ch0', 'значение исходного сигнала в рабочем канале (АЦП) - первый канал оптики'),
-  (650, 'Ur_Ch0', 'значение исходного сигнала в опорном канале (АЦП) - первый канал оптики'),
-  (652, 'WORK0', 'значение нормализованного сигнала в рабочем канале (АЦП) - первый канал оптики'),
-  (654, 'REF0', 'значение нормализованного сигнала в опроном канале (АЦП) - первый канал оптики'),
-  (656, 'Var1Ch0', 'значение дифференциального сигнала - первый канал оптики'),
-  (658, 'Var2Ch0', 'значение дифференциального сигнала с поправкой по нулю от температуры - первый канал оптики'),
-  (660, 'Var3Ch0', 'значение дифференциального сигнала с поправкой по чувствительности от температуры - первый канал оптики'),
-  (662, 'FppCh0', 'частота преобразования АЦП - первый канал оптики'),
-  (672, 'CoutCh1', 'концентрация - второй канал оптики'),
-  (674, 'TppCh1', 'температура пироприемника - второй канал оптики'),
-  (676, 'ILOn1', 'лампа ВКЛ - второй канал оптики'),
-  (678, 'ILOff1', 'лампа ВЫКЛ - второй канал оптики'),
-  (680, 'Uw_Ch1', 'значение исходного сигнала в рабочем канале (АЦП) - второй канал оптики'),
-  (682, 'Ur_Ch1', 'значение исходного сигнала в опорном канале (АЦП) - второй канал оптики'),
-  (684, 'WORK1', 'значение нормализованного сигнала в рабочем канале (АЦП) - второй канал оптики'),
-  (686, 'REF1', 'значение нормализованного сигнала в опроном канале (АЦП) - второй канал оптики'),
-  (688, 'Var1Ch1', 'значение дифференциального сигнала - второй канал оптики'),
-  (690, 'Var2Ch1', 'значение дифференциального сигнала с поправкой по нулю от температуры - второй канал оптики'),
-  (692, 'Var3Ch1', 'значение дифференциального сигнала с поправкой по чувствительности от температуры - второй канал оптики'),
-  (694, 'FppCh1', 'частота преобразования АЦП - второй канал оптики');
 `
 
 const SQLCoefficient = `
@@ -396,7 +401,6 @@ CREATE VIEW IF NOT EXISTS series_info AS
   FROM series
   ORDER BY created_at;
 
-
 CREATE VIEW IF NOT EXISTS chart_value_info AS
   SELECT
     datetime(julianday(s.created_at) + b.x) AS x,
@@ -411,4 +415,4 @@ CREATE VIEW IF NOT EXISTS chart_value_info AS
   INNER JOIN read_var r on b.read_var_id = r.read_var_id ;
 `
 
-const SQLAnkat = SQLProductsDB + SQLCoefficient + SQLCommands + SQLSeries
+const SQLAnkat = SQLProductsDB + SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLSeries

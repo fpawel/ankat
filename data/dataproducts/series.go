@@ -34,3 +34,20 @@ VALUES
     $3 );;
 `, serial, keyVar, value)
 }
+
+func DeleteLastEmptySeries(x *sqlx.DB) {
+	x.MustExec(`
+WITH a AS (SELECT series_id FROM last_series)
+DELETE FROM series WHERE
+  series_id IN (SELECT * FROM a) AND
+  NOT exists(
+    SELECT * FROM chart_value WHERE chart_value.series_id IN (SELECT * FROM a))
+`)
+}
+
+func DeleteAllEmptySeries(x *sqlx.DB) {
+	x.MustExec(`
+DELETE FROM series WHERE NOT exists(
+    SELECT * FROM chart_value WHERE chart_value.series_id = series.series_id)
+`)
+}

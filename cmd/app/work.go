@@ -11,8 +11,10 @@ import (
 func (x app) runWork(w uiworks.Work) {
 	f := w.Action
 	w.Action = func() error {
-		defer x.closeOpenedComports(x.sendMessage)
-		return f()
+		result := f()
+		x.closeOpenedComports(x.sendMessage)
+		dataproducts.DeleteLastEmptySeries(x.data.dbProducts)
+		return result
 	}
 	x.workCtrl.Perform(w)
 }
