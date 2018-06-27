@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const uiExe = `F:\DELPHIPATH\src\github.com\fpawel\delphianalit\ankat\Win32\Debug\ankat.exe`
-
 type app struct {
 	workCtrl  uiworks.Runner
 	data      data
@@ -33,7 +31,7 @@ func runApp() {
 	x := &app{
 		data: data{
 			dbConfig:   dbMustOpen("config.db", SQLConfigDB),
-			dbProducts: dbMustOpen("products.db", dataproducts.SQLProductsDB),
+			dbProducts: dbMustOpen("products.db", dataproducts.SQLAnkat),
 		},
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  make(map[string]comportState),
