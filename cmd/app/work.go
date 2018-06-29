@@ -9,14 +9,14 @@ import (
 )
 
 func (x app) runWork(w uiworks.Work) {
-	f := w.Action
+	action := w.Action
 	w.Action = func() error {
-		result := f()
+		result := action()
 		x.closeOpenedComports(x.sendMessage)
 		dataproducts.DeleteLastEmptySeries(x.data.dbProducts)
 		return result
 	}
-	x.workCtrl.Perform(w)
+	x.uiWorks.Perform(w)
 }
 
 func (x *app) closeOpenedComports(logger logger) {
@@ -35,7 +35,7 @@ func (x *app) comportProduct(p Product, logger logger) (*comport.Port, error) {
 		portConfig := x.data.ComportSets("products")
 		portConfig.Serial.Name = p.Comport
 		a.comport = comport.NewPort(portConfig)
-		a.err = a.comport.Open(x.workCtrl)
+		a.err = a.comport.Open(x.uiWorks)
 		x.comports[p.Comport] = a
 		if a.err != nil {
 			logger(p.Serial, dataworks.Error, a.err.Error())
@@ -46,9 +46,9 @@ func (x *app) comportProduct(p Product, logger logger) (*comport.Port, error) {
 }
 
 func (x app) sendCmd(cmd uint16, value float64) error {
-	x.workCtrl.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
+	x.uiWorks.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
 		x.data.formatCmd(cmd), value)
-	return x.doEachProductDevice(x.workCtrl.WriteLog, func(p productDevice) error {
+	return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
 		return nil
 	})
@@ -58,13 +58,13 @@ func (x app) runReadVarsWork() {
 
 	x.runWork(uiworks.S("Опрос", func() error {
 		dataproducts.CreateNewSeries(x.data.dbProducts, "Опрос")
-		for !x.workCtrl.Interrupted() {
+		for !x.uiWorks.Interrupted() {
 			if err := x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
 				if len(x.data.CheckedVars()) == 0 {
 					return errors.New("не выбраны регистры опроса")
 				}
 				for _, v := range x.data.CheckedVars() {
-					if x.workCtrl.Interrupted() {
+					if x.uiWorks.Interrupted() {
 						return nil
 					}
 					value, err := p.readVar(v.Var)
@@ -90,7 +90,7 @@ func (x app) runReadCoefficientsWork() {
 				return errors.New("не выбраны коэффициенты")
 			}
 			for _, v := range xs {
-				if x.workCtrl.Interrupted() {
+				if x.uiWorks.Interrupted() {
 					return nil
 				}
 				_, _ = p.readCoefficient(v.Coefficient)
@@ -109,7 +109,7 @@ func (x app) runWriteCoefficientsWork() {
 				return errors.New("не выбраны коэффициенты")
 			}
 			for _, v := range xs {
-				if x.workCtrl.Interrupted() {
+				if x.uiWorks.Interrupted() {
 					return nil
 				}
 				_ = p.writeCoefficient(v.Coefficient)
@@ -125,7 +125,7 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 	}
 
 	for _, p := range x.data.CheckedProducts() {
-		if x.workCtrl.Interrupted() {
+		if x.uiWorks.Interrupted() {
 			return nil
 		}
 		x.delphiApp.Send("READ_PRODUCT", struct {
@@ -136,7 +136,7 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 			if err = w(productDevice{
 				product:  p,
 				pipe:     x.delphiApp,
-				workCtrl: x.workCtrl,
+				workCtrl: x.uiWorks,
 				port:     port,
 				data:     x.data,
 			}); err != nil {

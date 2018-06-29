@@ -1,21 +1,20 @@
 package uiworks
 
 import (
-	"github.com/pkg/errors"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 type Task struct {
-	parent     *Task
-	children   []*Task
-	name       string
-	action     Action
-	ordinal int
+	parent   *Task
+	children []*Task
+	name     string
+	action   Action
+	ordinal  int
 }
 
 type Action func() error
-
 
 var errorInterrupted = errors.New("выполнение прервано")
 
@@ -27,7 +26,6 @@ func (x *Task) Root() (root *Task) {
 	return
 }
 
-
 func (x *Task) Descendants() (descendants []*Task) {
 	descendants = []*Task{x}
 	for _, y := range x.children {
@@ -37,12 +35,11 @@ func (x *Task) Descendants() (descendants []*Task) {
 }
 
 func (x *Task) Checked(dbConfig *sqlx.DB) bool {
-	checkState  := x.CheckState(dbConfig)
+	checkState := x.CheckState(dbConfig)
 	return checkState != "csUncheckedNormal" && checkState != "csUncheckedPressed"
 }
 
-
-func (x *Task) CheckState(dbConfig *sqlx.DB) ( checkState string) {
+func (x *Task) CheckState(dbConfig *sqlx.DB) (checkState string) {
 
 	var xs []string
 
@@ -50,7 +47,7 @@ func (x *Task) CheckState(dbConfig *sqlx.DB) ( checkState string) {
 	if err != nil {
 		panic(err)
 	}
-	if len(xs) == 0{
+	if len(xs) == 0 {
 		checkState = "csCheckedNormal"
 	} else {
 		checkState = xs[0]
@@ -92,7 +89,7 @@ func (x *Task) perform(ui Runner, dbConfig *sqlx.DB) error {
 }
 
 func (x *Task) GetTaskByOrdinal(ordinal int) (m *Task) {
-	for i,m := range x.Descendants(){
+	for i, m := range x.Descendants() {
 		if i == ordinal {
 			return m
 		}
@@ -100,12 +97,10 @@ func (x *Task) GetTaskByOrdinal(ordinal int) (m *Task) {
 	panic("unexpected")
 }
 
-
-
 func (x *Task) Key() dataworks.Work {
 	return dataworks.Work{
-		Index:x.ordinal,
-		Name:x.name,
+		Index: x.ordinal,
+		Name:  x.name,
 	}
 }
 
@@ -117,8 +112,6 @@ func (x *Task) ParentKeys() (xs []dataworks.Work) {
 	return
 }
 
-
-
 func (x *Task) Text() (text string) {
 	text = x.name
 	for y := x.parent; y != nil && y.parent != nil; y = y.parent {
@@ -127,22 +120,21 @@ func (x *Task) Text() (text string) {
 	return
 }
 
-
 type TaskInfo struct {
 	Name       string
-	Ordinal       int
-	HasError bool
+	Ordinal    int
+	HasError   bool
 	HasMessage bool
 	Children   []TaskInfo
 }
 
 func (x *Task) Info(dbLog *sqlx.DB) (m TaskInfo) {
-	w := dataworks.GetLastWorkInfo(dbLog, x.ordinal)
+	w := dataworks.GetLastWorkInfo(dbLog, x.ordinal, x.name)
 	m = TaskInfo{
-		Name: x.name,
-		Ordinal:x.ordinal,
-		HasError:w.HasError,
-		HasMessage:w.HasMessage,
+		Name:       x.name,
+		Ordinal:    x.ordinal,
+		HasError:   w.HasError,
+		HasMessage: w.HasMessage,
 	}
 
 	for _, y := range x.children {

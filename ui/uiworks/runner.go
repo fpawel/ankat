@@ -33,18 +33,14 @@ type delayInfo struct {
 }
 
 type notifyWork struct {
-	Ordinal    int
-	Run        bool
-	CheckState string
+	Ordinal int
+	Name    string
+	Run     bool
 }
 
 type endWork struct {
 	Name  string
 	Error error
-}
-
-type coloredText struct {
-	Text, Color string
 }
 
 func NewRunner(processMQ *procmq.ProcessMQ) Runner {
@@ -138,11 +134,6 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 				panic("run twice")
 			}
 			task := w.Task()
-
-			if rootTask.Text() != task.Text() {
-				x.delphiApp.Send("SETUP_CURRENT_WORKS", task.Info(dbLog))
-			}
-
 			rootTask = task
 			currentRunTask = task
 
@@ -216,6 +207,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 func (x Runner) notifyWork(m *Task, run bool) {
 	x.chNotifyWork <- notifyWork{
 		Ordinal: m.ordinal,
+		Name:    m.name,
 		Run:     run,
 	}
 }
@@ -323,16 +315,16 @@ func (x *interruptNotifier) Unsubscribe(ch chan struct{}) {
 	}
 }
 
-func notifyEnd(what string, err error) (t coloredText) {
-	if err == nil {
-		t.Text = fmt.Sprintf("%s: выполнено без ошибок", what)
-		t.Color = "clNavy"
-	} else {
-		t.Text = fmt.Sprintf("%s: %s", what, err)
-		t.Color = "clRed"
-	}
-	return
-}
+//func notifyEnd(what string, err error) (t coloredText) {
+//	if err == nil {
+//		t.Text = fmt.Sprintf("%s: выполнено без ошибок", what)
+//		t.Color = "clNavy"
+//	} else {
+//		t.Text = fmt.Sprintf("%s: %s", what, err)
+//		t.Color = "clRed"
+//	}
+//	return
+//}
 
 func mustUnmarshalJson(b []byte, v interface{}) {
 	if err := json.Unmarshal(b, v); err != nil {

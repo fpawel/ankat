@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-
 type CurrentWorkMessage = struct {
-	Work      int       `db:"work_index"`
-	CreatedAt time.Time `db:"created_at"`
-	ProductSerial int `db:"product_serial"`
-	Level     Level     `db:"level"`
-	Text      string    `db:"message"`
+	WorkIndex     int       `db:"work_index"`
+	Work          string    `db:"work"`
+	CreatedAt     time.Time `db:"created_at"`
+	ProductSerial int       `db:"product_serial"`
+	Level         Level     `db:"level"`
+	Text          string    `db:"message"`
 }
 
 type Level int
@@ -24,7 +24,6 @@ const (
 	Warning
 	Error
 )
-
 
 type WriteRecord struct {
 	Works         []Work
@@ -59,20 +58,20 @@ VALUES ($1, $2, (
   WHERE work_index = $3) );`,
 				work.Name, work.Index, works[i-1].Index)
 		} else {
-			x.MustExec(`INSERT INTO work_log ( works, work_index) VALUES ($1, $2);`,
+			x.MustExec(`INSERT INTO work_log ( work, work_index) VALUES ($1, $2);`,
 				work.Name, work.Index)
 		}
 
 	}
 }
 
-func LastWork(x *sqlx.DB) (s string) {
-	dbMustGet(x, &s, `SELECT work FROM last_work_log WHERE parent_record_id ISNULL LIMIT 1;`)
-	return
-}
+//func LastWork(x *sqlx.DB) (s string) {
+//	dbMustGet(x, &s, `SELECT work FROM last_work_log WHERE parent_record_id ISNULL LIMIT 1;`)
+//	return
+//}
 
-func AddRootWork(x *sqlx.DB, work string){
-	x.MustExec(`INSERT INTO work_log ( work, work_index ) VALUES ($1, 0 );`, work )
+func AddRootWork(x *sqlx.DB, work string) {
+	x.MustExec(`INSERT INTO work_log ( work, work_index ) VALUES ($1, 0 );`, work)
 }
 
 func Write(x *sqlx.DB, w WriteRecord) (m CurrentWorkMessage) {
@@ -101,6 +100,7 @@ SELECT
   (CASE WHEN a.product_serial IS NULL THEN 0 ELSE a.product_serial END) AS product_serial, 
   a.level AS level, 
   a.created_at AS created_at, 
+  b.work AS work,
   b.work_index AS work_index
 FROM last_work_log a
 INNER JOIN last_work_log b ON a.parent_record_id = b.record_id
@@ -112,59 +112,61 @@ WHERE a.record_id = $1`, rowID)
 
 }
 
-func GetMessagesOfLastWork(x *sqlx.DB, workIndex int) (xs []CurrentWorkMessage) {
+//func GetMessagesOfLastWork(x *sqlx.DB, workIndex int) (xs []CurrentWorkMessage) {
+//
+//	err := x.Select(&xs, `
+//WITH RECURSIVE acc(record_id, parent_record_id) AS (
+//  SELECT
+//    record_id, parent_record_id
+//  FROM last_work_log WHERE last_work_log.work_index = $1
+//  UNION
+//  SELECT
+//    w.record_id, w.parent_record_id
+//  FROM acc
+//    INNER JOIN last_work_log w ON w.parent_record_id = acc.record_id
+//)
+//SELECT
+//  l.created_at as created_at,
+//  p.work_index as work_index,
+//  l.level as level,
+//  l.message as message
+//FROM acc
+//  INNER JOIN last_work_log p ON acc.parent_record_id = p.record_id
+//  INNER JOIN last_work_log l ON acc.record_id = l.record_id
+//WHERE l.message NOT NULL AND l.level NOT NULL;`, workIndex)
+//
+//	if err != nil {
+//		panic(err)
+//	}
+//	return
+//}
 
-	err := x.Select(&xs, `
-WITH RECURSIVE acc(record_id, parent_record_id) AS (
-  SELECT
-    record_id, parent_record_id
-  FROM last_work_log WHERE last_work_log.work_index = $1
-  UNION
-  SELECT
-    w.record_id, w.parent_record_id
-  FROM acc
-    INNER JOIN last_work_log w ON w.parent_record_id = acc.record_id
-)
-SELECT 
-  l.created_at as created_at, 
-  p.work_index as work_index, 
-  l.level as level, 
-  l.message as message 
-FROM acc
-  INNER JOIN last_work_log p ON acc.parent_record_id = p.record_id
-  INNER JOIN last_work_log l ON acc.record_id = l.record_id
-WHERE l.message NOT NULL AND l.level NOT NULL;`, workIndex)
-
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
-type WorkInfo struct{
-	HasError bool `db:"has_error"`
+type WorkInfo struct {
+	HasError   bool `db:"has_error"`
 	HasMessage bool `db:"has_message"`
 }
 
-func GetLastWorkInfo(x *sqlx.DB, workIndex int) (workInfo WorkInfo ) {
+func GetLastWorkInfo(x *sqlx.DB, workIndex int, work string) (workInfo WorkInfo) {
 
 	err := x.Get(&workInfo, `
 WITH RECURSIVE acc(record_id, parent_record_id, level) AS (
   SELECT
     record_id, parent_record_id, level
-  FROM last_work_log WHERE last_work_log.work_index = $1
+  FROM last_work_log 
+  WHERE last_work_log.work_index = $1 AND 
+		last_work_log.work = $2
+
   UNION
   SELECT
     w.record_id as record_id, 
     w.parent_record_id as parent_record_id, 
-    w.level as level
+    w.level as level	
   FROM acc
     INNER JOIN last_work_log w ON w.parent_record_id = acc.record_id
 )
-
 SELECT 
   EXISTS( SELECT * FROM acc WHERE level >= 4) as has_error, 
-  EXISTS( SELECT * FROM acc ) as has_message;`, workIndex)
+  EXISTS( SELECT * FROM acc ) as has_message;`, workIndex, work)
 
 	if err != nil {
 		panic(err)
@@ -173,15 +175,14 @@ SELECT
 	return
 }
 
-func dbMustGet(db *sqlx.DB,  dest interface{}, query string, args ...interface{} ) {
-	if err := db.Get(dest, query, args...); err != nil {
-		panic(err)
-	}
-}
-
-func dbMustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface{}){
-	if err := db.Select(dest, query); err != nil {
-		panic(err)
-	}
-}
-
+//func dbMustGet(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
+//	if err := db.Get(dest, query, args...); err != nil {
+//		panic(err)
+//	}
+//}
+//
+//func dbMustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
+//	if err := db.Select(dest, query); err != nil {
+//		panic(err)
+//	}
+//}
