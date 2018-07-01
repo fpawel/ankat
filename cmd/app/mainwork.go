@@ -11,7 +11,16 @@ func (x *app) mainWork() uiworks.Work {
 
 	sleep10 := delay(x.uiWorks, "Задержка 10с", time.Second*10)
 
-	return uiworks.L("Настройка ДАК-М",
+	return uiworks.L("Настройка Анкат",
+		x.eachProductWork("Установка режима работы 2", func(p productDevice) error {
+			_ = p.sendSetWorkModeCmd(2)
+			return nil
+		}),
+		x.eachProductWork("Установка значений коэффициентов по умолчанию", func(p productDevice) error {
+			return p.sendSetWorkModeCmd(2)
+		}),
+
+
 		uiworks.L("Продувка воздухом",
 			uiworks.S("Подать воздух", sleep10),
 			uiworks.S("Задержка 5 минут", sleep10),

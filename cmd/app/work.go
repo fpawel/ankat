@@ -149,3 +149,11 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 	}
 	return nil
 }
+
+
+func (x app) eachProductWork(name string, work func(p productDevice) error) uiworks.Work{
+	return uiworks.S(name, func() error {
+		return x.doEachProductDevice(x.sendMessage, work)
+	})
+}
+

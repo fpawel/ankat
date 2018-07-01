@@ -6,6 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"fmt"
 	"database/sql"
+	"github.com/fpawel/ankat/data/dataproducts"
 )
 
 type Product struct {
@@ -66,6 +67,19 @@ func (x data) ComportSets(id string) (c comport.Config){
 	return
 }
 
+
+func (x data)  CurrentPartyValue(name string) float64 {
+	return dataproducts.CurrentPartyValue(x.dbProducts, name)
+}
+
+func (x data) CurrentPartyValueStr(name string) ( value string) {
+	return dataproducts.CurrentPartyValueStr(x.dbProducts, name)
+}
+
+func (x data) IsTwoConcentrationChannels() bool{
+	return x.CurrentPartyValue( "sensors_count") == 2
+}
+
 func (x data) CheckedVars() (vars []Var){
 	dbMustSelect( x.dbProducts, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
 	return
@@ -108,17 +122,11 @@ func (x data) Product(n int) (p Product) {
 }
 
 func (x data) SetCoefficientValue(productSerial,coefficient int, value float64) {
-	x.dbProducts.MustExec(`
-INSERT OR REPLACE INTO product_coefficient_value (party_id, product_serial, coefficient_id, value)
-VALUES ((SELECT * FROM current_party_id),
-        $1, $2, $3); `, productSerial, coefficient, value)
+	dataproducts.SetCoefficientValue(x.dbProducts, productSerial,coefficient, value  )
 }
 
-func (x data) CoefficientValue(productSerial,coefficient int) ( value sql.NullFloat64) {
-	x.dbProducts.Get(&value,`
-SELECT value FROM current_party_coefficient_value 
-WHERE product_serial=$1 AND coefficient_id = $2;`, productSerial, coefficient,)
-	return
+func (x data) CoefficientValue(productSerial,coefficient int) sql.NullFloat64 {
+	return dataproducts.CoefficientValue(x.dbProducts, productSerial,coefficient)
 }
 
 func (x data) ComportProductsBounceTimeout() time.Duration {
@@ -126,3 +134,4 @@ func (x data) ComportProductsBounceTimeout() time.Duration {
 	x.dbConfig.Get(&n,`SELECT value FROM config WHERE var = 'comport_products_bounce_timeout';`)
 	return n * time.Millisecond
 }
+

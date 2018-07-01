@@ -168,12 +168,12 @@ INSERT OR IGNORE  INTO party_var(sort_order, var, name, type, min, max, def_val)
   (3, 'gas2', 'газ к.2', 'text', NULL, NULL, 'CH₄'),
   (4, 'scale1', 'шкала к.1', 'real', 0, NULL, 2 ),
   (5, 'scale2', 'шкала к.2', 'real', 0, NULL, 2),
-  (6, 'gas1','азот, ПГС1', 'real', 0, NULL, 0),
-  (7, 'gas2ch1','середина, к.1, ПГС2', 'real', 0, NULL, 0.67),
-  (8, 'gas2ch1+','доп. CO2, к.1, ПГС3', 'real', 0, NULL, 1.33),
-  (9, 'gas3ch1', 'шкала, к.1, ПГС4', 'real', 0, NULL, 2),
-  (10, 'gas2ch2', 'середина, к.2, ПГС5', 'real', 0, NULL, 1.33),
-  (11, 'gas3ch2', 'шкала, к.2, ПГС6', 'real', 0, NULL, 2),
+  (6, 'c_gas1','азот, ПГС1', 'real', 0, NULL, 0),
+  (7, 'c_gas2ch1','середина, к.1, ПГС2', 'real', 0, NULL, 0.67),
+  (8, 'c_gas2ch1+','доп. CO2, к.1, ПГС3', 'real', 0, NULL, 1.33),
+  (9, 'c_gas3ch1', 'шкала, к.1, ПГС4', 'real', 0, NULL, 2),
+  (10, 'c_gas2ch2', 'середина, к.2, ПГС5', 'real', 0, NULL, 1.33),
+  (11, 'c_gas3ch2', 'шкала, к.2, ПГС6', 'real', 0, NULL, 2),
   (12, 't-', 'T-,"С', 'real', NULL, NULL, -30 ),
   (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
 
@@ -415,4 +415,4 @@ CREATE VIEW IF NOT EXISTS chart_value_info AS
   INNER JOIN read_var r on b.read_var_id = r.read_var_id ;
 `
 
-const SQLAnkat = SQLProductsDB + SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLSeries
+const SQLAnkat = SQLProductsDB +  SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLAnkatVars + SQLSeries
