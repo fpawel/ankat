@@ -12,14 +12,10 @@ func (x *app) mainWork() uiworks.Work {
 	sleep10 := delay(x.uiWorks, "Задержка 10с", time.Second*10)
 
 	return uiworks.L("Настройка Анкат",
-		x.eachProductWork("Установка режима работы 2", func(p productDevice) error {
-			_ = p.sendSetWorkModeCmd(2)
-			return nil
-		}),
+		x.workSendSetWorkMode(2),
 		x.eachProductWork("Установка значений коэффициентов по умолчанию", func(p productDevice) error {
 			return p.sendSetWorkModeCmd(2)
 		}),
-
 
 		uiworks.L("Продувка воздухом",
 			uiworks.S("Подать воздух", sleep10),
@@ -38,6 +34,13 @@ func (x *app) mainWork() uiworks.Work {
 			}, nil),
 		),
 	)
+}
+
+func (x *app) workSendSetWorkMode(mode float64) uiworks.Work {
+	return x.eachProductWork(fmt.Sprintf("Установка режима работы: %v", mode), func(p productDevice) error {
+		_ = p.sendSetWorkModeCmd(mode)
+		return nil
+	})
 }
 
 func delay(u uiworks.Runner, what string, duration time.Duration) func() error {

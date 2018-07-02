@@ -8,6 +8,8 @@ import (
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
 	_ "github.com/mattn/go-sqlite3"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -67,6 +69,19 @@ func runApp() {
 		x.runWork(uiworks.S(x.data.formatCmd(a.Cmd), func() error {
 			return x.sendCmd(a.Cmd, a.Arg)
 		}))
+	})
+
+	x.delphiApp.Handle("SEND_SET_WORK_MODE", func(b []byte) {
+		s := string(b)
+		s = strings.Replace(s, ",", ".", -1)
+		mode, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			x.delphiApp.Send("END_WORK", struct {
+				Name, Error string
+			}{"Установка режима работы", err.Error()})
+		} else {
+			x.runWork(x.workSendSetWorkMode(mode))
+		}
 	})
 
 	fmt.Println("delphiApp connecting...")
