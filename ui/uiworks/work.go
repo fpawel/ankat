@@ -6,19 +6,17 @@ type Work struct {
 	Action   func() error
 }
 
-
-
 func S(name string, action Action) Work {
 	return Work{
-		Name:name,
-		Action:action,
+		Name:   name,
+		Action: action,
 	}
 }
 
 func L(name string, children ...Work) Work {
 	return Work{
-		Name:name,
-		Children:children,
+		Name:     name,
+		Children: children,
 	}
 }
 
@@ -31,12 +29,11 @@ func (x Work) Check() {
 	}
 }
 
-
 func (x Work) Task() *Task {
 	x.Check()
 	m := &Task{
-		name:    x.Name,
-		action:  x.Action,
+		name:   x.Name,
+		action: x.Action,
 	}
 
 	for _, o := range x.Children {
@@ -45,12 +42,11 @@ func (x Work) Task() *Task {
 		m.children = append(m.children, om)
 	}
 	if m.parent == nil {
-		for i,y := range m.Descendants(){
+		m.enumDescendants(&m.descendants)
+		for i, y := range m.descendants {
 			y.ordinal = i
 		}
 	}
 
 	return m
 }
-
-

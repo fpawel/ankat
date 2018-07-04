@@ -49,6 +49,15 @@ func runApp() {
 		x.data.dbConfig.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
 			v.Ordinal, v.CheckState)
 	})
+
+	x.delphiApp.Handle("RUN_MAIN_WORK", func(b []byte) {
+		n, err := strconv.ParseInt(string(b), 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		x.runWork(int(n), x.mainWork())
+	})
+
 	x.delphiApp.Handle("READ_VARS", func([]byte) {
 		x.runReadVarsWork()
 	})
@@ -66,7 +75,7 @@ func runApp() {
 			Arg float64
 		}
 		mustUnmarshalJson(b, &a)
-		x.runWork(uiworks.S(x.data.formatCmd(a.Cmd), func() error {
+		x.runWork(0, uiworks.S("Отправка команды", func() error {
 			return x.sendCmd(a.Cmd, a.Arg)
 		}))
 	})
@@ -78,9 +87,9 @@ func runApp() {
 		if err != nil {
 			x.delphiApp.Send("END_WORK", struct {
 				Name, Error string
-			}{"Установка режима работы", err.Error()})
+			}{"Отправка команды", err.Error()})
 		} else {
-			x.runWork(x.workSendSetWorkMode(mode))
+			x.runWork(0, x.workSendSetWorkMode(mode))
 		}
 	})
 

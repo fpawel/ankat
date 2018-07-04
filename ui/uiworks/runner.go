@@ -23,7 +23,7 @@ type Runner struct {
 	chDelay                  chan delayInfo
 	chDelaySkipped           chan struct{}
 	chWriteLog               chan dataworks.WriteRecord
-	chStartWork              chan Work
+	chStartWork              chan runWork
 }
 
 type delayInfo struct {
@@ -43,6 +43,12 @@ type endWork struct {
 	Error error
 }
 
+type runWork struct {
+	work Work
+	n    int
+	end  func()
+}
+
 func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 	x := Runner{
 		delphiApp:                processMQ,
@@ -52,7 +58,7 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 		chInterrupt:              make(chan struct{}),
 		chNotifyWork:             make(chan notifyWork),
 		chStartMainTask:          make(chan notifyWork),
-		chStartWork:              make(chan Work),
+		chStartWork:              make(chan runWork),
 		chGetInterrupted:         make(chan chan bool),
 		chSubscribeInterrupted:   make(chan chan struct{}),
 		chUnsubscribeInterrupted: make(chan chan struct{}),
@@ -129,12 +135,12 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 		case ch := <-x.chUnsubscribeInterrupted:
 			interruptNotifier.Unsubscribe(ch)
 
-		case w := <-x.chStartWork:
+		case d := <-x.chStartWork:
 			if started {
 				panic("run twice")
 			}
-			task := w.Task()
-			rootTask = task
+			rootTask = d.work.Task()
+			task := rootTask.descendants[d.n]
 			currentRunTask = task
 
 			//x.delphiApp.Send("SETUP_CURRENT_WORKS", task.Info(dbLog))
@@ -143,10 +149,11 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			workLogWritten = false
 			go func() {
 				x.notifyWork(task, true)
-				err := w.Action()
+				err := task.perform(x, dbConfig)
+				d.end()
 				x.chEndWork <- endWork{
 					Error: err,
-					Name:  w.Name,
+					Name:  task.name,
 				}
 				x.notifyWork(task, false)
 			}()
@@ -212,8 +219,8 @@ func (x Runner) notifyWork(m *Task, run bool) {
 	}
 }
 
-func (x Runner) Perform(w Work) {
-	x.chStartWork <- w
+func (x Runner) Perform(ordinal int, w Work, end func()) {
+	x.chStartWork <- runWork{w, ordinal, end}
 }
 
 func (x Runner) Interrupted() bool {

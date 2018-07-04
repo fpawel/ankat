@@ -2,50 +2,69 @@ package main
 
 import (
 	"fmt"
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
-	"time"
+	"github.com/pkg/errors"
 )
 
 func (x *app) mainWork() uiworks.Work {
 
-	sleep10 := delay(x.uiWorks, "Задержка 10с", time.Second*10)
-
 	return uiworks.L("Настройка Анкат",
 		x.workSendSetWorkMode(2),
-		x.eachProductWork("Установка значений коэффициентов по умолчанию", func(p productDevice) error {
-			return p.sendSetWorkModeCmd(2)
+		x.workEachProduct("Установка значений коэффициентов по умолчанию", func(p productDevice) error {
+			err := p.writeInitCoefficients()
+			if err != nil {
+				x.uiWorks.WriteLogf(p.product.Serial, dataworks.Error,
+					"не удалось записать коэффициенты по умолчанию: %v", err)
+			}
+			return nil
 		}),
 
-		uiworks.L("Продувка воздухом",
-			uiworks.S("Подать воздух", sleep10),
-			uiworks.S("Задержка 5 минут", sleep10),
-			uiworks.S("Выключить пневмоблок", sleep10),
-			x.uiWorks.WorkDelay("Задержка 10 с", func() time.Duration {
-				return 10 * time.Second
-			}, nil),
-		),
-		uiworks.L("Продувка воздухом2",
-			uiworks.S("Подать воздух2", sleep10),
-			uiworks.S("Задержка 5 минут2", sleep10),
-			uiworks.S("Выключить пневмоблок2", sleep10),
-			x.uiWorks.WorkDelay("Задержка 10 с2", func() time.Duration {
-				return 10 * time.Second
-			}, nil),
-		),
+		uiworks.S("Нормировка каналов измерения", func() error {
+			if err := x.blowGas(ankat.Nitrogen); err != nil {
+				return errors.Wrap(err,
+					"не удалось продуть азот")
+			}
+			if err := x.sendCmd(8, 100); err != nil {
+				return errors.Wrap(err,
+					"не удалось отправить команду на нормировку канала 1")
+			}
+			if x.data.IsTwoConcentrationChannels() {
+				err := x.sendCmd(9, 100)
+				return errors.Wrap(err,
+					"не удалось отправить команду на нормировку канала 2")
+			}
+			return nil
+		}),
 	)
 }
 
+func (x app) workEachProduct(name string, work func(p productDevice) error) uiworks.Work {
+	return uiworks.S(name, func() error {
+		return x.doEachProductDevice(x.sendMessage, work)
+	})
+}
+
 func (x *app) workSendSetWorkMode(mode float64) uiworks.Work {
-	return x.eachProductWork(fmt.Sprintf("Установка режима работы: %v", mode), func(p productDevice) error {
+	return x.workEachProduct(fmt.Sprintf("Установка режима работы: %v", mode), func(p productDevice) error {
 		_ = p.sendSetWorkModeCmd(mode)
 		return nil
 	})
 }
 
-func delay(u uiworks.Runner, what string, duration time.Duration) func() error {
-	return func() error {
-		u.WriteLog(0, dataworks.Debug, fmt.Sprintf("СОМ порт приборов: %v", "COM1"))
-		return u.Delay(what, duration, doNothing)
-	}
+func (x *app) workNorming() uiworks.Work {
+
+	return uiworks.S("Нормировка каналов измерения", func() error {
+		if err := x.blowGas(ankat.Nitrogen); err != nil {
+			return err
+		}
+		if err := x.sendCmd(8, 100); err != nil {
+			return err
+		}
+		if x.data.IsTwoConcentrationChannels() {
+			return x.sendCmd(9, 100)
+		}
+		return nil
+	})
 }

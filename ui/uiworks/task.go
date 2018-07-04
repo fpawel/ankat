@@ -7,11 +7,12 @@ import (
 )
 
 type Task struct {
-	parent   *Task
-	children []*Task
-	name     string
-	action   Action
-	ordinal  int
+	parent      *Task
+	children    []*Task
+	descendants []*Task
+	name        string
+	action      Action
+	ordinal     int
 }
 
 type Action func() error
@@ -26,12 +27,15 @@ func (x *Task) Root() (root *Task) {
 	return
 }
 
-func (x *Task) Descendants() (descendants []*Task) {
-	descendants = []*Task{x}
+func (x *Task) enumDescendants(descendants *[]*Task) {
+	*descendants = append(*descendants, x)
 	for _, y := range x.children {
-		descendants = append(descendants, y.Descendants()...)
+		y.enumDescendants(descendants)
 	}
-	return
+}
+
+func (x *Task) Descendants() []*Task {
+	return x.descendants
 }
 
 func (x *Task) Checked(dbConfig *sqlx.DB) bool {

@@ -9,9 +9,9 @@ import (
 	"github.com/fpawel/guartutils/fetch"
 	"github.com/fpawel/guartutils/modbus"
 	"github.com/fpawel/procmq"
-	"time"
-	"log"
 	"github.com/pkg/errors"
+	"log"
+	"time"
 )
 
 type productDevice struct {
@@ -112,7 +112,7 @@ func (x productDevice) readVar(v int) (value float64, err error) {
 	return value, err
 }
 
-func (x productDevice) writeInitCoefficients(mode float64) error {
+func (x productDevice) writeInitCoefficients() error {
 	type cv struct {
 		Coefficient int
 		Value       float64
@@ -140,13 +140,12 @@ func (x productDevice) writeInitCoefficients(mode float64) error {
 		return 0
 	}
 
-	val := func(name string) float64{
+	val := func(name string) float64 {
 		return x.data.CurrentPartyValue(name)
 	}
-	str := func(name string) string{
+	str := func(name string) string {
 		return x.data.CurrentPartyValueStr(name)
 	}
-
 
 	xs := []cv{
 		{2, float64(time.Now().Year())},
@@ -177,7 +176,7 @@ func (x productDevice) writeInitCoefficients(mode float64) error {
 
 	if x.data.IsTwoConcentrationChannels() {
 
-		xs2 := []cv {
+		xs2 := []cv{
 			{15, sensorCode(
 				str("gas2"),
 				val("scale2")),
@@ -228,7 +227,7 @@ func (x productDevice) sendCmd(cmd uint16, value float64) error {
 		err = req.CheckResponse16(b)
 	}
 	if fetch.NoAnswer(err) || modbus.ProtocolError(err) {
-		x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, err.Error())
+		//x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, err.Error())
 		req = modbus.NewWriteCmdBCD(1, 0x10, cmd, value)
 		b, err = x.port.Fetch(req.Bytes())
 		if err == nil {
@@ -319,7 +318,7 @@ func (x productDevice) writeError(format string, a ...interface{}) {
 	x.workCtrl.WriteLog(x.product.Serial, dataworks.Error, fmt.Sprintf(format, a...))
 }
 
-func newAnkatSetWorkModeRequest( mode float64) modbus.Request {
+func newAnkatSetWorkModeRequest(mode float64) modbus.Request {
 	return modbus.Request{
 		Cmd:  0x16,
 		Addr: 1,
@@ -327,12 +326,12 @@ func newAnkatSetWorkModeRequest( mode float64) modbus.Request {
 	}
 }
 
-func checkResponseAnkatSetWorkMode(x modbus.Request, b []byte) error{
+func checkResponseAnkatSetWorkMode(x modbus.Request, b []byte) error {
 	if err := x.CheckResponse(b); err != nil {
 		return err
 	}
-	a := []byte{0xA0,0,0,0}
-	for i := range a{
+	a := []byte{0xA0, 0, 0, 0}
+	for i := range a {
 		if a[i] != b[i+2] {
 			return errors.Errorf("ошибка формата ответа на запрпос установки режима работы АНКАТ: % X != % X",
 				a, b[2:6])

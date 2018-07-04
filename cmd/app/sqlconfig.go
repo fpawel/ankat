@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS value_list(
 INSERT OR IGNORE INTO section(name, sort_order) VALUES 
   ('Связь с приборами', 0),
   ('Пневмоблок', 1),
-  ('Термокамера', 2);
+  ('Термокамера', 2),
+  ('Автоматическая настройка', 3)
+  ;
 
 INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
   ('Связь с приборами', 0, 'comport_products', 'имя СОМ-порта', 'comport_name', NULL, NULL, 'COM1' ),
@@ -62,6 +64,11 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Термокамера', 4, 'comport_temp_repeat_count', 'количество повторов', 'integer', 0, 10, 0 ),
   ('Термокамера', 5, 'comport_temp_bounce_timeout', 'таймаут дребезга, мс', 'integer', 0, 1000, 0 ),
   ('Термокамера', 6, 'comport_temp_bounce_limit', 'предел дребезга', 'integer', 0, 20, 0 );
+
+INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
+  ('Автоматическая настройка', 0, 'delay_blow_nitrogen', 'Длительность продувки азота, минут', 'integer', 1, 10, 3 ),
+  ('Автоматическая настройка', 1, 'delay_blow_gas', 'Длительность продувки измеряемого газа, минут', 'integer', 1, 10, 3 )
+;
 
 INSERT OR IGNORE INTO value_list(var, value) VALUES
   ('gas1', 'CH₄'),
