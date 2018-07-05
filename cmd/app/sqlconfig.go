@@ -66,8 +66,8 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Термокамера', 6, 'comport_temp_bounce_limit', 'предел дребезга', 'integer', 0, 20, 0 );
 
 INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
-  ('Автоматическая настройка', 0, 'delay_blow_nitrogen', 'Длительность продувки азота, минут', 'integer', 1, 10, 3 ),
-  ('Автоматическая настройка', 1, 'delay_blow_gas', 'Длительность продувки измеряемого газа, минут', 'integer', 1, 10, 3 )
+  ('Автоматическая настройка', 0, 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3 ),
+  ('Автоматическая настройка', 1, 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3 )
 ;
 
 INSERT OR IGNORE INTO value_list(var, value) VALUES

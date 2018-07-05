@@ -149,7 +149,7 @@ CREATE VIEW IF NOT EXISTS party_info AS
         WHEN 1 THEN ''
         ELSE ' ' || c.value || ' ' || cast(g.value AS INTEGER)
         END ) AS what,
-	(SELECT exists(SELECT * FROM work_log w WHERE w.party_id = p.party_id)) AS has_log
+	(SELECT exists(SELECT * FROM last_work_log w WHERE w.party_id = p.party_id)) AS has_log
   FROM party p
     INNER JOIN party_value a on p.party_id = a.party_id and a.var = 'product_type_number'
     INNER JOIN party_value b on p.party_id = b.party_id and b.var = 'gas1'
@@ -216,46 +216,59 @@ INSERT OR IGNORE INTO read_var (read_var_id, name, description) VALUES
 `
 
 const SQLWorks = `
-CREATE TABLE IF NOT EXISTS work_log (
-  record_id INTEGER PRIMARY KEY,
-  parent_record_id INTEGER,
+CREATE TABLE IF NOT EXISTS work (
+  work_id INTEGER PRIMARY KEY,
+  parent_work_id INTEGER,
   created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-
-  uiworks TEXT,
+  work_name TEXT,
   work_index INTEGER,
   party_id INTEGER,
-  product_serial INTEGER,
-
-  level INTEGER ,
-  message TEXT,
-
-  CHECK( message ISNULL  AND level ISNULL  AND uiworks NOTNULL AND work_index NOTNULL  OR
-         message NOTNULL AND level NOTNULL AND uiworks ISNULL  AND work_index ISNULL ),
-
-  FOREIGN KEY(parent_record_id) REFERENCES work_log(record_id) ON DELETE CASCADE,
-  FOREIGN KEY(party_id) REFERENCES party(party_id)  ON DELETE CASCADE,
-  FOREIGN KEY(party_id, product_serial) REFERENCES product(party_id, product_serial)  ON DELETE CASCADE
+  FOREIGN KEY(parent_work_id) REFERENCES work(work_id) ON DELETE CASCADE,
+  FOREIGN KEY(party_id) REFERENCES party(party_id)  ON DELETE CASCADE
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_validate_work_party_id
-  AFTER INSERT ON work_log
-FOR EACH ROW
+  AFTER INSERT ON work
+  FOR EACH ROW
   WHEN (NEW.party_id IS NULL)
 BEGIN
-  UPDATE work_log
+  UPDATE work
   SET party_id = (SELECT current_party.party_id FROM current_party)
-  WHERE record_id = NEW.record_id;
+  WHERE work_id = NEW.work_id;
 END;
 
-CREATE VIEW IF NOT EXISTS last_work_log_root AS
-  SELECT * FROM work_log
-  WHERE parent_record_id ISNULL
+CREATE TABLE IF NOT EXISTS work_log (
+  record_id INTEGER PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+  work_id INTEGER NOT NULL,
+  product_serial INTEGER,
+  level INTEGER NOT NULL CHECK (level >= 0),
+  message TEXT NOT NULL CHECK (message != ''),
+  FOREIGN KEY(work_id) REFERENCES work(work_id) ON DELETE CASCADE
+);
+
+CREATE VIEW IF NOT EXISTS last_work_root AS
+  SELECT * FROM work
+  WHERE parent_work_id ISNULL
   ORDER BY created_at DESC LIMIT 1;
 
-CREATE VIEW IF NOT EXISTS last_work_log AS
-  SELECT * FROM work_log
-  WHERE created_at >= (SELECT created_at FROM last_work_log_root)
+CREATE VIEW IF NOT EXISTS last_work AS
+  SELECT * FROM work
+  WHERE created_at >= (SELECT created_at FROM last_work_root)
   ORDER BY created_at;
+
+CREATE VIEW IF NOT EXISTS last_work_log AS
+  SELECT
+    b.work_id,
+    a.parent_work_id,
+    b.created_at,
+    a.party_id,
+    b.product_serial,
+    b.level,
+    b.message
+  FROM last_work a
+  INNER JOIN work_log b ON a.work_id = b.work_id
+  ORDER BY b.created_at;
 `
 
 const SQLCoefficient = `
@@ -415,4 +428,4 @@ CREATE VIEW IF NOT EXISTS chart_value_info AS
   INNER JOIN read_var r on b.read_var_id = r.read_var_id ;
 `
 
-const SQLAnkat = SQLProductsDB +  SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLAnkatVars + SQLSeries
+const SQLAnkat = SQLProductsDB + SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLAnkatVars + SQLSeries

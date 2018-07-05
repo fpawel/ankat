@@ -52,9 +52,6 @@ func (x *app) comport(name string) (*comport.Port, error) {
 		a.comport = comport.NewPort(portConfig)
 		a.err = a.comport.Open(x.uiWorks)
 		x.comports[portConfig.Serial.Name] = a
-		if a.err != nil {
-			x.uiWorks.WriteLog(0, dataworks.Error, a.err.Error())
-		}
 	}
 	return a.comport, a.err
 }
@@ -230,20 +227,12 @@ func (x app) blowGas(n ankat.GasCode) error {
 func (x *app) switchGas(n ankat.GasCode) error {
 	port, err := x.comport("gas")
 	if err != nil {
-		return errors.Wrap(err, "не удалось открыть СОМ порт")
+		return err
 	}
 	req := modbus.NewSwitchGasOven(byte(n))
 	_, err = port.Fetch(req.Bytes())
-	var what string
-	if n == ankat.CloseGasBlock {
-		what = "закрыть все клапаны"
-	} else {
-		what = fmt.Sprintf("открыть клапан %d", n)
+	if err != nil {
+		return errors.Wrap(err, "нет связи")
 	}
-	if err == nil {
-		x.uiWorks.WriteLog(0, dataworks.Info, what)
-	} else {
-		x.uiWorks.WriteLogf(0, dataworks.Error, "%s: %v", what, err)
-	}
-	return errors.Wrap(err, "нет связи")
+	return nil
 }
