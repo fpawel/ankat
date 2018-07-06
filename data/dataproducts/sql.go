@@ -247,6 +247,15 @@ CREATE TABLE IF NOT EXISTS work_log (
   FOREIGN KEY(work_id) REFERENCES work(work_id) ON DELETE CASCADE
 );
 
+CREATE VIEW IF NOT EXISTS work_log2 AS
+  SELECT
+    l.record_id, w.party_id, l.work_id, w.parent_work_id,
+    l.created_at, w.work_name, w.work_index,
+    l.level, l.message, l.product_serial
+  FROM work_log l INNER JOIN work w on l.work_id = w.work_id;
+
+
+
 CREATE VIEW IF NOT EXISTS last_work_root AS
   SELECT * FROM work
   WHERE parent_work_id ISNULL

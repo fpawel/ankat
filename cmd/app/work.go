@@ -76,10 +76,11 @@ func (x app) runReadVarsWork() {
 		defer dataproducts.DeleteLastEmptySeries(x.data.dbProducts)
 		for !x.uiWorks.Interrupted() {
 			if err := x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
-				if len(x.data.CheckedVars()) == 0 {
-					return errors.New("не выбраны регистры опроса")
+				vars := x.data.CheckedVars()
+				if len(vars) == 0 {
+					vars = x.data.Vars()[:2]
 				}
-				for _, v := range x.data.CheckedVars() {
+				for _, v := range vars {
 					if x.uiWorks.Interrupted() {
 						return nil
 					}
@@ -103,7 +104,7 @@ func (x app) runReadCoefficientsWork() {
 		return x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
 			xs := x.data.CheckedCoefficients()
 			if len(xs) == 0 {
-				return errors.New("не выбраны коэффициенты")
+				xs = x.data.Coefficients()
 			}
 			for _, v := range xs {
 				if x.uiWorks.Interrupted() {
@@ -122,7 +123,7 @@ func (x app) runWriteCoefficientsWork() {
 		return x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
 			xs := x.data.CheckedCoefficients()
 			if len(xs) == 0 {
-				return errors.New("не выбраны коэффициенты")
+				xs = x.data.Coefficients()
 			}
 			for _, v := range xs {
 				if x.uiWorks.Interrupted() {
@@ -232,7 +233,7 @@ func (x *app) switchGas(n ankat.GasCode) error {
 	req := modbus.NewSwitchGasOven(byte(n))
 	_, err = port.Fetch(req.Bytes())
 	if err != nil {
-		return errors.Wrap(err, "нет связи")
+		return errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name)
 	}
 	return nil
 }

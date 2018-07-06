@@ -79,13 +79,18 @@ func Write(x *sqlx.DB, w WriteRecord) (m CurrentWorkMessage) {
 	}
 	work := w.Works[len(w.Works)-1]
 
-	x.MustExec(`
+	r := x.MustExec(`
 INSERT INTO work_log
   (work_id,  product_serial, level, message)  VALUES
   ( (SELECT work_id FROM last_work WHERE work_index = $1 LIMIT 1), $2, $3 , $4);`,
 		work.Index, productSerial, w.Level, w.Text)
 
-	err := x.Get(&m, `
+	rowID, err := r.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+
+	dbMustGet(x, &m, `
 SELECT 
   message, 
   (CASE WHEN a.product_serial IS NULL THEN 0 ELSE a.product_serial END) AS product_serial, 
@@ -95,7 +100,7 @@ SELECT
   work_index
 FROM work_log a
 INNER JOIN work b ON a.work_id = b.work_id
-WHERE record_id =  last_insert_rowid()`)
+WHERE record_id =  ?`, rowID)
 	if err != nil {
 		panic(err)
 	}
@@ -131,4 +136,10 @@ SELECT
 		panic(err)
 	}
 	return
+}
+
+func dbMustGet(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
+	if err := db.Get(dest, query, args...); err != nil {
+		panic(err)
+	}
 }
