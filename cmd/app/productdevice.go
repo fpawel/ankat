@@ -251,22 +251,23 @@ func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 }
 
 func (x productDevice) writeCoefficient(coefficient int) error {
-	v := x.data.CoefficientValue(x.product.Serial, coefficient)
-	if !v.Valid {
+	v, exists := x.data.CoefficientValue(x.product.Serial, coefficient)
+	if !exists {
 		x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, fmt.Sprintf(
 			"запись К%d: значение коэффициента не задано", coefficient))
+		return nil
 	}
 
-	err := x.sendCmd(uint16((0x80<<8)+coefficient), v.Float64)
+	err := x.sendCmd(uint16((0x80<<8)+coefficient), v)
 
 	if fetch.Canceled(err) {
 		return nil
 	}
-	x.notifyConnected(err, "K%d:=%v", coefficient, v.Float64)
+	x.notifyConnected(err, "K%d:=%v", coefficient, v)
 	if err == nil {
-		x.writeInfo("K%d:=%v", coefficient, v.Float64)
+		x.writeInfo("K%d:=%v", coefficient, v)
 	} else {
-		x.writeError("запись K%d:=%v: %v", coefficient, v.Float64, err)
+		x.writeError("запись K%d:=%v: %v", coefficient, v, err)
 	}
 	for _, a := range x.data.Coefficients() {
 		if a.Coefficient == coefficient {
@@ -274,7 +275,7 @@ func (x productDevice) writeCoefficient(coefficient int) error {
 				Var:     a.Ordinal,
 				Product: x.product.Ordinal,
 				Error:   fmtErr(err),
-				Value:   v.Float64,
+				Value:   v,
 			})
 			break
 		}

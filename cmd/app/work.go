@@ -65,33 +65,41 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 	})
 }
 
-func (x app) runMainWork() {
-
-}
 
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
 		dataproducts.CreateNewSeries(x.data.dbProducts, "Опрос")
 		defer dataproducts.DeleteLastEmptySeries(x.data.dbProducts)
-		for !x.uiWorks.Interrupted() {
-			if err := x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
-				vars := x.data.CheckedVars()
-				if len(vars) == 0 {
-					vars = x.data.Vars()[:2]
+
+		for {
+
+			if len(x.data.CheckedProducts()) == 0 {
+				return errors.New("не выбраны приборы")
+			}
+
+			for _, p := range x.data.CheckedProducts() {
+				if x.uiWorks.Interrupted() {
+					return nil
 				}
-				for _, v := range vars {
-					if x.uiWorks.Interrupted() {
-						return nil
+				if err := x.doProductDevice(p, x.sendMessage, func(p productDevice) error {
+					vars := x.data.CheckedVars()
+					if len(vars) == 0 {
+						vars = x.data.Vars()[:2]
 					}
-					value, err := p.readVar(v.Var)
-					if err == nil {
-						dataproducts.AddChartValue(x.data.dbProducts, p.product.Serial, v.Var, value)
+					for _, v := range vars {
+						if x.uiWorks.Interrupted() {
+							return nil
+						}
+						value, err := p.readVar(v.Var)
+						if err == nil {
+							dataproducts.AddChartValue(x.data.dbProducts, p.product.Serial, v.Var, value)
+						}
 					}
+					return nil
+				}); err != nil {
+					return err
 				}
-				return nil
-			}); err != nil {
-				return err
 			}
 		}
 		return nil
@@ -143,7 +151,7 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 
 	for _, p := range x.data.CheckedProducts() {
 		if x.uiWorks.Interrupted() {
-			return nil
+			return errors.New("прервано")
 		}
 		if err := x.doProductDevice(p, logger, w); err != nil {
 			return err

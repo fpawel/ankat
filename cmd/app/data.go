@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/guartutils/comport"
@@ -124,7 +123,7 @@ func (x data) SetCoefficientValue(productSerial, coefficient int, value float64)
 	dataproducts.SetCoefficientValue(x.dbProducts, productSerial, coefficient, value)
 }
 
-func (x data) CoefficientValue(productSerial, coefficient int) sql.NullFloat64 {
+func (x data) CoefficientValue(productSerial, coefficient int) (float64,bool) {
 	return dataproducts.CoefficientValue(x.dbProducts, productSerial, coefficient)
 }
 

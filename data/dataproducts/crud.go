@@ -1,7 +1,6 @@
 package dataproducts
 
 import (
-	"database/sql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
@@ -27,10 +26,15 @@ VALUES ((SELECT * FROM current_party_id),
         $1, $2, $3); `, productSerial, coefficient, value)
 }
 
-func CoefficientValue(x *sqlx.DB, productSerial, coefficient int) (value sql.NullFloat64) {
-	dbMustGet(x, &value, `
+func CoefficientValue(x *sqlx.DB, productSerial, coefficient int) (value float64, exits bool) {
+	var xs []float64
+	dbMustSelect(x, &xs, `
 SELECT value FROM current_party_coefficient_value 
 WHERE product_serial=$1 AND coefficient_id = $2;`, productSerial, coefficient)
+	if len(xs) > 0{
+		value = xs[0]
+		exits = true
+	}
 	return
 }
 
@@ -50,6 +54,12 @@ WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
 
 func dbMustGet(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
 	if err := db.Get(dest, query, args...); err != nil {
+		panic(err)
+	}
+}
+
+func dbMustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
+	if err := db.Select(dest, query, args...); err != nil {
 		panic(err)
 	}
 }
