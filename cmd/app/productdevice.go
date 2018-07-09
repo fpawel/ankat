@@ -198,6 +198,9 @@ func (x productDevice) writeInitCoefficients() error {
 	}
 
 	for _, c := range xs {
+		//if x.workCtrl.Interrupted() {
+		//	return errors.New("прервано")
+		//}
 		if err := x.writeCoefficientValue(c.Coefficient, c.Value); err != nil {
 			return err
 		}
