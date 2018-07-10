@@ -255,9 +255,6 @@ func (x Runner) WriteLogf(productSerial int, level dataworks.Level, format strin
 
 func (x Runner) Delay(name string, duration time.Duration, backgroundWork func() error) error {
 	timer := time.NewTimer(duration)
-	chInterrupted := make(chan struct{})
-	x.SubscribeInterrupted(chInterrupted, true)
-	defer x.SubscribeInterrupted(chInterrupted, false)
 
 	x.chDelay <- delayInfo{
 		Name:       name,
@@ -270,11 +267,13 @@ func (x Runner) Delay(name string, duration time.Duration, backgroundWork func()
 	x.WriteLog(0, dataworks.Debug, fmt.Sprintf("Задержка %v", duration))
 
 	for {
+		if x.Interrupted() {
+			return errorInterrupted
+		}
+
 		select {
 		case <-timer.C:
 			return nil
-		case <-chInterrupted:
-			return errorInterrupted
 		case <-x.chDelaySkipped:
 			x.WriteLog(0, dataworks.Warning, "задержка прервана")
 			return nil

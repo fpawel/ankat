@@ -22,18 +22,37 @@ func (x *app) mainWork() uiworks.Work {
 		}),
 
 		uiworks.S("Нормировка каналов измерения", func() error {
-			if err := x.blowGas(ankat.Nitrogen); err != nil {
+			if err := x.blowGas(ankat.GasNitrogen); err != nil {
 				return errors.Wrap(err,
 					"не удалось продуть азот")
 			}
 			if err := x.sendCmd(8, 100); err != nil {
 				return errors.Wrap(err,
-					"не удалось отправить команду на нормировку канала 1")
+					"не удалось выполнить команду для нормировки канала 1")
 			}
 			if x.data.IsTwoConcentrationChannels() {
 				err := x.sendCmd(9, 100)
 				return errors.Wrap(err,
-					"не удалось отправить команду на нормировку канала 2")
+					"не удалось выполнить команду для нормировки канала 2")
+			}
+			return nil
+		}),
+
+		uiworks.S("Калибровка начала шкалы", func() error {
+			if err := x.blowGas(ankat.GasNitrogen); err != nil {
+				return errors.Wrap(err,
+					"не удалось продуть азот")
+			}
+			nitrogenConcentration := x.data.CurrentPartyValue("c_gas1")
+			if err := x.sendCmd(1, nitrogenConcentration); err != nil {
+				return errors.Wrap(err,
+					"не удалось выполнить команду калибровки начала шкалы канала 1")
+			}
+			if x.data.IsTwoConcentrationChannels() {
+				if err := x.sendCmd(4, nitrogenConcentration); err != nil {
+					return errors.Wrap(err,
+						"не удалось выполнить команду калибровки начала шкалы канала 2")
+				}
 			}
 			return nil
 		}),
@@ -56,7 +75,7 @@ func (x *app) workSendSetWorkMode(mode float64) uiworks.Work {
 func (x *app) workNorming() uiworks.Work {
 
 	return uiworks.S("Нормировка каналов измерения", func() error {
-		if err := x.blowGas(ankat.Nitrogen); err != nil {
+		if err := x.blowGas(ankat.GasNitrogen); err != nil {
 			return err
 		}
 		if err := x.sendCmd(8, 100); err != nil {

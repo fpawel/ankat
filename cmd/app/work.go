@@ -65,7 +65,6 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 	})
 }
 
-
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
@@ -220,7 +219,7 @@ func (x *app) doDelay(what string, duration time.Duration) error {
 func (x app) blowGas(n ankat.GasCode) error {
 	param := "delay_blow_nitrogen"
 	what := fmt.Sprintf("продувка газа %d", n)
-	if n == ankat.Nitrogen {
+	if n == ankat.GasNitrogen {
 		param = "delay_blow_gas"
 		what = "продувка азота"
 	}
@@ -241,7 +240,15 @@ func (x *app) switchGas(n ankat.GasCode) error {
 	req := modbus.NewSwitchGasOven(byte(n))
 	_, err = port.Fetch(req.Bytes())
 	if err != nil {
-		return errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name)
+
+		s := x.delphiApp.SendAndGetAnswer("GAS_BLOCK_CONNECTION_ERROR", err.Error())
+		if s != "IGNORE" {
+			return errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name)
+		}
+
+		x.uiWorks.WriteLogf(0, dataworks.Warning,
+			"нет связи c газовым блоком через %s: %v", port.Config().Serial.Name, err)
+
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -38,6 +39,13 @@ func runApp() {
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  make(map[string]comportState),
 	}
+
+	// внести в базу данных записи технологических процессов
+	for _, k := range ankat.TechProcesses() {
+		x.data.dbProducts.MustExec(`INSERT OR IGNORE INTO tech_process (tech_process_id, name) VALUES (?,?);`,
+			k, ankat.TechProcessName(k))
+	}
+
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
 	x.delphiApp.Handle("CURRENT_WORK_CHECKED_CHANGED", func(bytes []byte) {
