@@ -12,11 +12,10 @@ type Series struct {
 	Name      string    `db:"name"`
 }
 
-func CreateNewSeries(x *sqlx.DB, name string) {
+func CreateNewSeries(x *sqlx.DB) {
 	x.MustExec(`
-INSERT INTO  series (party_id, name)
-VALUES ( (SELECT party_id FROM current_party), $1 );
-`, name)
+INSERT INTO  series (work_id) 
+VALUES ( (SELECT work_id FROM work  ORDER BY created_at DESC LIMIT 1));`)
 }
 
 func GetLastSeries() (x *sqlx.DB, series Series) {

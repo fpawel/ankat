@@ -68,7 +68,8 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
-		dataproducts.CreateNewSeries(x.data.dbProducts, "Опрос")
+		dataworks.AddRootWork(x.data.dbProducts, "опрос")
+		dataproducts.CreateNewSeries(x.data.dbProducts)
 		defer dataproducts.DeleteLastEmptySeries(x.data.dbProducts)
 
 		for {
@@ -181,7 +182,7 @@ func (x *app) doProductDevice(p Product, logger logger, w func(p productDevice) 
 }
 
 func (x *app) doDelay(what string, duration time.Duration) error {
-	dataproducts.CreateNewSeries(x.data.dbProducts, what)
+	dataproducts.CreateNewSeries(x.data.dbProducts)
 	vars := ankat.MainVars1()
 	if x.data.IsTwoConcentrationChannels() {
 		vars = append(vars, ankat.MainVars2()...)
