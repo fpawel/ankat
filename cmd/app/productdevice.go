@@ -9,8 +9,10 @@ import (
 	"github.com/fpawel/guartutils/fetch"
 	"github.com/fpawel/guartutils/modbus"
 	"github.com/fpawel/procmq"
+	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"log"
+	"math"
 	"time"
 )
 
@@ -78,9 +80,9 @@ func (x productDevice) readCoefficient(coefficient int) (value float64, err erro
 		}
 	}
 	if err == nil {
-		x.writeInfo("K%d=%v", coefficient, value)
+		x.writeInfof("K%d=%v", coefficient, value)
 	} else {
-		x.writeError("считывание K%d: %v", coefficient, err)
+		x.writeErrorf("считывание K%d: %v", coefficient, err)
 	}
 	return value, err
 }
@@ -215,9 +217,9 @@ func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 		err = checkResponseAnkatSetWorkMode(req, b)
 	}
 	if err == nil {
-		x.writeInfo("установка режима работы: %v", mode)
+		x.writeInfof("установка режима работы: %v", mode)
 	} else {
-		x.writeError("установка режима работы: %v: %v", mode, err)
+		x.writeErrorf("установка режима работы: %v: %v", mode, err)
 	}
 	return err
 }
@@ -246,9 +248,9 @@ func (x productDevice) sendCmd(cmd uint16, value float64) error {
 func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 	err := x.sendCmd(cmd, value)
 	if err == nil {
-		x.writeInfo("%s: %v", x.data.formatCmd(cmd), value)
+		x.writeInfof("%s: %v", x.data.formatCmd(cmd), value)
 	} else {
-		x.writeError("%s: %v: %v", x.data.formatCmd(cmd), value, err)
+		x.writeErrorf("%s: %v: %v", x.data.formatCmd(cmd), value, err)
 	}
 	return err
 }
@@ -268,9 +270,9 @@ func (x productDevice) writeCoefficient(coefficient int) error {
 	}
 	x.notifyConnected(err, "K%d:=%v", coefficient, v)
 	if err == nil {
-		x.writeInfo("K%d:=%v", coefficient, v)
+		x.writeInfof("K%d:=%v", coefficient, v)
 	} else {
-		x.writeError("запись K%d:=%v: %v", coefficient, v, err)
+		x.writeErrorf("запись K%d:=%v: %v", coefficient, v, err)
 	}
 	for _, a := range x.data.Coefficients() {
 		if a.Coefficient == coefficient {
@@ -296,9 +298,9 @@ func (x productDevice) writeCoefficientValue(coefficient int, value float64) err
 	x.notifyConnected(err, "K%d:=%v", coefficient, value)
 	if err == nil {
 		dataproducts.SetCoefficientValue(x.data.dbProducts, x.product.Serial, coefficient, value)
-		x.writeInfo("K%d:=%v", coefficient, value)
+		x.writeInfof("K%d:=%v", coefficient, value)
 	} else {
-		x.writeError("запись K%d:=%v: %v", coefficient, value, err)
+		x.writeErrorf("запись K%d:=%v: %v", coefficient, value, err)
 	}
 	for _, a := range x.data.Coefficients() {
 		if a.Coefficient == coefficient {
@@ -314,12 +316,58 @@ func (x productDevice) writeCoefficientValue(coefficient int, value float64) err
 	return err
 }
 
-func (x productDevice) writeInfo(format string, a ...interface{}) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Info, fmt.Sprintf(format, a...))
+func (x productDevice) writeInfo(str string) {
+	x.workCtrl.WriteLog(x.product.Serial, dataworks.Info, str)
 }
 
-func (x productDevice) writeError(format string, a ...interface{}) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Error, fmt.Sprintf(format, a...))
+func (x productDevice) writeInfof(format string, a ...interface{}) {
+	x.writeInfo(fmt.Sprintf(format, a...))
+}
+
+func (x productDevice) writeError(str string) {
+	x.workCtrl.WriteLog(x.product.Serial, dataworks.Error, str)
+}
+
+func (x productDevice) writeErrorf(format string, a ...interface{}) {
+	x.writeError(fmt.Sprintf(format, a...))
+}
+
+func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNumber int) error {
+	const maxAttemptsLimit = 10
+
+	wrapErr := func(err error) error {
+		return errors.Wrapf(err, "не удалось откалибровать датчик температуры (попытка %d из %d): %v",
+			attemptNumber+1, maxAttemptsLimit, err)
+	}
+
+	k49, err := x.readCoefficient(49)
+	if err != nil {
+		return wrapErr(errors.Wrap(err, "не удалось считать коэффициент 49"))
+
+	}
+
+	temperatureTermoChamber, err := termochamber.T800Read(portTermo)
+	if err != nil {
+		return wrapErr(errors.Wrap(err, "не удалось считать температуру термокамеры"))
+	}
+
+	temperatureCPU, err := x.readVar(10)
+	if err != nil {
+		return wrapErr(errors.Wrap(err, "не удалось считать температуру микроконтроллера"))
+	}
+
+	err = x.writeCoefficientValue(49, k49+temperatureTermoChamber-temperatureCPU)
+	if err != nil {
+		return wrapErr(errors.Wrap(err, "не удалось записать коэффициент 49"))
+	}
+
+	if math.Abs(temperatureTermoChamber-temperatureCPU) > 3 {
+		if attemptNumber < maxAttemptsLimit {
+			return wrapErr(x.doAdjustTemperatureCPU(portTermo, attemptNumber+1))
+		}
+		return wrapErr(errors.New("превышено максимальное число попыток"))
+	}
+	return nil
 }
 
 func newAnkatSetWorkModeRequest(mode float64) modbus.Request {

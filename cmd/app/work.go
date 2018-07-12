@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/modbus"
+	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"time"
 )
@@ -181,7 +182,7 @@ func (x *app) doProductDevice(p Product, logger logger, w func(p productDevice) 
 	return err
 }
 
-func (x *app) doDelay(what string, duration time.Duration) error {
+func (x *app) doDelayWithReadProducts(what string, duration time.Duration) error {
 	dataproducts.CreateNewSeries(x.data.dbProducts)
 	vars := ankat.MainVars1()
 	if x.data.IsTwoConcentrationChannels() {
@@ -217,6 +218,12 @@ func (x *app) doDelay(what string, duration time.Duration) error {
 	})
 }
 
+func (x *app) doPause(what string, duration time.Duration) {
+	_ = x.uiWorks.Delay(what, duration, func() error {
+		return nil
+	})
+}
+
 func (x app) blowGas(n ankat.GasCode) error {
 	param := "delay_blow_nitrogen"
 	what := fmt.Sprintf("продувка газа %d", n)
@@ -230,13 +237,13 @@ func (x app) blowGas(n ankat.GasCode) error {
 	duration := x.data.ConfigDuration(param) * time.Minute
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"%s: в настройках задана длительность %v", what, duration)
-	return x.doDelay(what, duration)
+	return x.doDelayWithReadProducts(what, duration)
 }
 
 func (x *app) switchGas(n ankat.GasCode) error {
 	port, err := x.comport("gas")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "не удалось открыть СОМ порт газового блока")
 	}
 	req := modbus.NewSwitchGasOven(byte(n))
 	_, err = port.Fetch(req.Bytes())
@@ -252,4 +259,29 @@ func (x *app) switchGas(n ankat.GasCode) error {
 
 	}
 	return nil
+}
+
+func (x *app) setupTemperature(temperature float64) error {
+	port, err := x.comport("temp")
+	if err != nil {
+		return errors.Wrapf(err, "не удалось открыть СОМ порт термокамеры для установки %v\"С", temperature)
+	}
+	if err = termochamber.T800Setup(port, temperature); err != nil {
+		return errors.Wrapf(err, "не удалось установить температуру %v\"С в термокамере", temperature)
+	}
+	duration := x.data.ConfigDuration("delay_temperature") * time.Hour
+	x.uiWorks.WriteLogf(0, dataworks.Info,
+		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
+	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)
+}
+
+func (x *app) adjustProductTemperatureSensor(p productDevice, attemptNumber, maxAttemptsLimit int) error {
+
+}
+
+func (x *app) adjustTemperatureSensor(attemptNumber, maxAttemptsLimit int) error {
+	return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
+
+		return nil
+	})
 }

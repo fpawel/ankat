@@ -23,8 +23,13 @@ const (
 type GasCode int
 
 const (
-	GasClose    GasCode = 0
-	GasNitrogen GasCode = 1
+	GasClose GasCode = iota
+	GasNitrogen
+	GasChan1Middle1
+	GasChan1Middle2
+	GasChan1End
+	GasChan2Middle
+	GasChan2End
 )
 
 func MainVars1() []int {
