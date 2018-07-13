@@ -27,10 +27,10 @@ func AddChartValue(x *sqlx.DB, serial, keyVar int, value float64) {
 	x.MustExec(`
 INSERT INTO chart_value (series_id, product_serial, read_var_id, x, y)
 VALUES
-  ( (SELECT series_id FROM last_series), $1, $2,
+  ( (SELECT series_id FROM last_series), ?, ?,
     (SELECT (julianday(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))  -
              julianday( (SELECT created_at FROM last_series) ))),
-    $3 );;
+    ? );;
 `, serial, keyVar, value)
 }
 

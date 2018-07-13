@@ -336,8 +336,8 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 	const maxAttemptsLimit = 10
 
 	wrapErr := func(err error) error {
-		return errors.Wrapf(err, "не удалось откалибровать датчик температуры (попытка %d из %d): %v",
-			attemptNumber+1, maxAttemptsLimit, err)
+		return errors.Wrapf(err, "не удалось откалибровать датчик температуры (попытка %d из %d)",
+			attemptNumber+1, maxAttemptsLimit)
 	}
 
 	k49, err := x.readCoefficient(49)
@@ -363,7 +363,7 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 
 	if math.Abs(temperatureTermoChamber-temperatureCPU) > 3 {
 		if attemptNumber < maxAttemptsLimit {
-			return wrapErr(x.doAdjustTemperatureCPU(portTermo, attemptNumber+1))
+			return x.doAdjustTemperatureCPU(portTermo, attemptNumber+1)
 		}
 		return wrapErr(errors.New("превышено максимальное число попыток"))
 	}

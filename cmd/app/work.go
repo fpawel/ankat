@@ -155,7 +155,7 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 			return errors.New("прервано")
 		}
 		if err := x.doProductDevice(p, logger, w); err != nil {
-			return err
+			return errors.Wrapf(err, "прибор: серийный номер %d", p.Serial)
 		}
 	}
 	return nil
@@ -248,40 +248,59 @@ func (x *app) switchGas(n ankat.GasCode) error {
 	req := modbus.NewSwitchGasOven(byte(n))
 	_, err = port.Fetch(req.Bytes())
 	if err != nil {
-
-		s := x.delphiApp.SendAndGetAnswer("GAS_BLOCK_CONNECTION_ERROR", err.Error())
-		if s != "IGNORE" {
-			return errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name)
-		}
-
-		x.uiWorks.WriteLogf(0, dataworks.Warning,
-			"нет связи c газовым блоком через %s: %v", port.Config().Serial.Name, err)
-
+		return x.promptErrorStopWork(errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name))
 	}
 	return nil
 }
 
-func (x *app) setupTemperature(temperature float64) error {
+func (x *app) promptErrorStopWork(err error) error {
+	s := x.delphiApp.SendAndGetAnswer("PROMPT_ERROR_STOP_WORK", err.Error())
+	if s != "IGNORE" {
+		return err
+	}
+	x.uiWorks.WriteLogf(0, dataworks.Warning, "ошибка автоматической настройки была проигнорирована: %v", err)
+	return nil
+}
+
+func (x *app) doSetupTemperature(temperature float64) error {
 	port, err := x.comport("temp")
 	if err != nil {
-		return errors.Wrapf(err, "не удалось открыть СОМ порт термокамеры для установки %v\"С", temperature)
+		return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 	}
-	if err = termochamber.T800Setup(port, temperature); err != nil {
-		return errors.Wrapf(err, "не удалось установить температуру %v\"С в термокамере", temperature)
+	deltaTemperature := x.data.ConfigValue("delta_temperature")
+
+	cancelWaitTemperature, chWaitTemperature := termochamber.WaitForTemperature(termochamber.WaitTemperatureConfig{
+		ReadTemperature: func() (float64, error) {
+			return termochamber.T800Read(port)
+		},
+		Timeout:        x.data.ConfigDuration("timeout_temperature") * time.Minute,
+		TemperatureMax: temperature - deltaTemperature,
+		TemperatureMin: temperature + deltaTemperature,
+	})
+	chInterrupted := make(chan struct{})
+	x.uiWorks.SubscribeInterrupted(chInterrupted, true)
+	defer x.uiWorks.SubscribeInterrupted(chInterrupted, false)
+	for {
+		select {
+		case <-chInterrupted:
+			cancelWaitTemperature()
+			return errors.New("перервано")
+		case err := <-chWaitTemperature:
+			return err
+		}
+	}
+}
+
+func (x *app) setupAndHoldTemperature(temperature float64) error {
+	if err := x.doSetupTemperature(temperature); err != nil {
+		if err = x.promptErrorStopWork(
+			errors.Wrapf(err,
+				"не удалось установить температуру %v\"С в термокамере", temperature)); err != nil {
+			return err
+		}
 	}
 	duration := x.data.ConfigDuration("delay_temperature") * time.Hour
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)
-}
-
-func (x *app) adjustProductTemperatureSensor(p productDevice, attemptNumber, maxAttemptsLimit int) error {
-
-}
-
-func (x *app) adjustTemperatureSensor(attemptNumber, maxAttemptsLimit int) error {
-	return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
-
-		return nil
-	})
 }

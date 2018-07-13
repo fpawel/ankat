@@ -123,7 +123,7 @@ func (x data) SetCoefficientValue(productSerial, coefficient int, value float64)
 	dataproducts.SetCoefficientValue(x.dbProducts, productSerial, coefficient, value)
 }
 
-func (x data) CoefficientValue(productSerial, coefficient int) (float64,bool) {
+func (x data) CoefficientValue(productSerial, coefficient int) (float64, bool) {
 	return dataproducts.CoefficientValue(x.dbProducts, productSerial, coefficient)
 }
 
@@ -135,6 +135,12 @@ func (x data) ComportProductsBounceTimeout() time.Duration {
 
 func (x data) ConfigDuration(name string) time.Duration {
 	var n time.Duration
+	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
+	return n
+}
+
+func (x data) ConfigValue(name string) float64 {
+	var n float64
 	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
 	return n
 }
