@@ -109,10 +109,24 @@ func (x *app) mainWork() uiworks.Work {
 				}
 			}
 			x.doPause("калибровка чувствительности", 10*time.Second)
+
+			if err := x.blowGas(ankat.GasNitrogen); err != nil {
+				return errors.Wrap(err,
+					"не удалось продуть азот после калибровки чувствительности")
+			}
+
+			return nil
+		}),
+
+		uiworks.S("Снятие для линеаризации", func() error {
 			return nil
 		}),
 	)
 }
+
+//func (x *app) workLinPoint(gas ankat.GasCode) uiworks.Work {
+//
+//}
 
 func (x app) workEachProduct(name string, work func(p productDevice) error) uiworks.Work {
 	return uiworks.S(name, func() error {

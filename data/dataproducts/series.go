@@ -25,7 +25,7 @@ func GetLastSeries() (x *sqlx.DB, series Series) {
 
 func AddChartValue(x *sqlx.DB, serial, keyVar int, value float64) {
 	x.MustExec(`
-INSERT INTO chart_value (series_id, product_serial, read_var_id, x, y)
+INSERT INTO chart_value (series_id, product_serial, var, x, y)
 VALUES
   ( (SELECT series_id FROM last_series), ?, ?,
     (SELECT (julianday(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))  -

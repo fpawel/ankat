@@ -132,6 +132,14 @@ type TaskInfo struct {
 	Children   []TaskInfo
 }
 
+func (x *Task) Name() string {
+	return x.name
+}
+
+func (x *Task) Ordinal() int {
+	return x.ordinal
+}
+
 func (x *Task) Info(dbLog *sqlx.DB) (m TaskInfo) {
 	w := dataworks.GetLastWorkInfo(dbLog, x.ordinal, x.name)
 	m = TaskInfo{

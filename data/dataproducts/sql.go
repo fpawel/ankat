@@ -1,6 +1,6 @@
 package dataproducts
 
-const SQLProductsDB = `
+const SQLProductsDB string = `
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
@@ -96,43 +96,35 @@ CREATE TABLE IF NOT EXISTS tech_process(
   name TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS tech_process(
-  tech_process_id TEXT NOT NULL PRIMARY KEY,
-  name TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS read_var(
-  read_var_id INTEGER NOT NULL PRIMARY KEY CHECK (typeof(read_var_id)='integer' AND  read_var_id >= 0),
+  var INTEGER NOT NULL PRIMARY KEY CHECK (typeof(var)='integer' AND  var >= 0),
   name TEXT NOT NULL,
   description TEXT DEFAULT '',
   checked CHECK ( checked IN (0, 1) ) DEFAULT 1
 );
 
 CREATE VIEW IF NOT EXISTS read_var_enumerated AS
-  SELECT count(*)-1 AS ordinal, cur.read_var_id AS read_var_id, cur.checked as checked
+  SELECT count(*)-1 AS ordinal, cur.var AS var, cur.checked as checked
   FROM read_var AS cur
     LEFT JOIN read_var AS oth
-  WHERE cur.read_var_id >= oth.read_var_id
-  GROUP BY cur.read_var_id;
+  WHERE cur.var >= oth.var
+  GROUP BY cur.var;
 
-CREATE TABLE IF NOT EXISTS product_read_value(
+CREATE TABLE IF NOT EXISTS product_value(
   party_id INTEGER NOT NULL,
   product_serial REAL NOT NULL,
-  tech_process_id TEXT NOT NULL,
-  read_var_id INTEGER NOT NULL,
-  point_index INTEGER NOT NULL CHECK (typeof(point_index)='integer' AND  point_index >= 0),
+  section TEXT NOT NULL,
+  point NOT NULL,
+  var INTEGER NOT NULL,
   value REAL NOT NULL,
 
-  UNIQUE (party_id, product_serial, tech_process_id, read_var_id, point_index),
+  UNIQUE (party_id, product_serial, section, point, var),
 
-  FOREIGN KEY(tech_process_id) REFERENCES tech_process(tech_process_id) ON DELETE CASCADE,
-  FOREIGN KEY(read_var_id) REFERENCES read_var(read_var_id) ON DELETE CASCADE,
+  FOREIGN KEY( var) REFERENCES read_var(var) ON DELETE CASCADE,
   FOREIGN KEY(party_id, product_serial)
-  REFERENCES product(party_id, product_serial) ON DELETE CASCADE
+  REFERENCES product(party_id, product_serial)
+    ON DELETE CASCADE
 );
-
-INSERT OR IGNORE INTO party(party_id)  VALUES(1);
-INSERT OR IGNORE INTO product(party_id, product_serial) VALUES ( 1,1);
 `
 
 const SQLAnkatPartyInfo = `
@@ -143,6 +135,13 @@ CREATE VIEW IF NOT EXISTS party_info AS
     cast(strftime('%Y', created_at) AS INT) as year,
     cast(strftime('%m', created_at) AS INT) as month,
     cast(strftime('%d', created_at) AS INT) as day,
+	a.value as product_type_number,
+	b.value as gas1,
+	c.value as gas2,
+	d.value as sensors_count,
+	e.value as scale1,
+	g.value as scale2,
+
     a.value || ' ' || b.value || ' ' || cast(e.value AS INTEGER)  || (
       SELECT
         CASE d.value
@@ -161,23 +160,23 @@ CREATE VIEW IF NOT EXISTS party_info AS
 
 const SQLAnkatVars = `
 
-INSERT OR IGNORE  INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
+INSERT OR REPLACE  INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
   (0, 'product_type_number', 'номер исполнения', 'integer', 1, NULL , 10),
   (1, 'sensors_count', 'количество каналов', 'integer', 1, 2, 1),
   (2, 'gas1', 'газ к.1', 'text', NULL, NULL, 'CH₄' ),
   (3, 'gas2', 'газ к.2', 'text', NULL, NULL, 'CH₄'),
   (4, 'scale1', 'шкала к.1', 'real', 0, NULL, 2 ),
   (5, 'scale2', 'шкала к.2', 'real', 0, NULL, 2),
-  (6, 'c_gas1','азот, ПГС1', 'real', 0, NULL, 0),
-  (7, 'c_gas2ch1','середина, к.1, ПГС2', 'real', 0, NULL, 0.67),
-  (8, 'c_gas2ch1+','доп. CO2, к.1, ПГС3', 'real', 0, NULL, 1.33),
-  (9, 'c_gas3ch1', 'шкала, к.1, ПГС4', 'real', 0, NULL, 2),
-  (10, 'c_gas2ch2', 'середина, к.2, ПГС5', 'real', 0, NULL, 1.33),
-  (11, 'c_gas3ch2', 'шкала, к.2, ПГС6', 'real', 0, NULL, 2),
+  (6, 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
+  (7, 'cgas2','ПГС2 середина к.1', 'real', 0, NULL, 0.67),
+  (8, 'cgas3','ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
+  (9, 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
+  (10, 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
+  (11, 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2),
   (12, 't-', 'T-,"С', 'real', NULL, NULL, -30 ),
   (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
 
-INSERT OR IGNORE INTO read_var (read_var_id, name, description) VALUES
+INSERT OR REPLACE INTO read_var (var, name, description) VALUES
   (0, 'CCh0', 'концентрация - канал 1 (электрохимия 1)'),
   (2, 'CCh1', 'концентрация - канал 2 (электрохимия 2/оптика 1)'),
   (4, 'CCh2', 'концентрация - канал 3 (оптика 1/оптика 2)'),
@@ -254,8 +253,6 @@ CREATE VIEW IF NOT EXISTS work_log2 AS
     l.level, l.message, l.product_serial
   FROM work_log l INNER JOIN work w on l.work_id = w.work_id;
 
-
-
 CREATE VIEW IF NOT EXISTS last_work_root AS
   SELECT * FROM work
   WHERE parent_work_id ISNULL
@@ -308,7 +305,7 @@ CREATE VIEW IF NOT EXISTS current_party_coefficient_value AS
     INNER JOIN current_party_products_config b ON a.product_serial = b.product_serial
   WHERE party_id IN current_party_id;
 
-INSERT OR IGNORE INTO coefficient (coefficient_id, name, description) VALUES
+INSERT OR REPLACE INTO coefficient (coefficient_id, name, description) VALUES
   (0, 'VER_PO', 'номер версии ПО'),
   (1, 'PPRIBOR_TYPE', 'номер исполнения прибора'),
   (2, 'YEAR', 'год выпуска'),
@@ -374,7 +371,7 @@ CREATE TABLE IF NOT EXISTS command (
   description TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO command VALUES
+INSERT OR REPLACE INTO command VALUES
   (1, 'Коррекция нуля 1'),
   (2, 'Коррекция конца шкалы 1'),
   (4, 'Коррекция нуля 2'),
@@ -408,15 +405,15 @@ CREATE VIEW IF NOT EXISTS series_info AS
 CREATE TABLE IF NOT EXISTS chart_value (
   series_id INTEGER NOT NULL,
   product_serial INTEGER NOT NULL,
-  read_var_id INTEGER NOT NULL,
+  var INTEGER NOT NULL,
   x REAL NOT NULL,
 
   y REAL NOT NULL,
 
-  UNIQUE (series_id, product_serial, read_var_id, x),
+  UNIQUE (series_id, product_serial, var, x),
 
   FOREIGN KEY(series_id) REFERENCES series(series_id)  ON DELETE CASCADE,
-  FOREIGN KEY(read_var_id) REFERENCES read_var(read_var_id)  ON DELETE CASCADE
+  FOREIGN KEY(var) REFERENCES read_var(var)  ON DELETE CASCADE
 );
 
 CREATE VIEW IF NOT EXISTS last_series AS
@@ -438,13 +435,13 @@ CREATE VIEW IF NOT EXISTS chart_value_info AS
      strftime('%d.%m.%Y %H:%M:%f', julianday(s.created_at) + b.x) AS x,
      b.y AS y,
      b.product_serial AS product_serial,
-     b.read_var_id AS read_var_id,
+     b.var AS var,
      b.series_id AS series_id,
      s.party_id AS party_id,
      r.name AS var_name
   FROM chart_value AS b
      INNER JOIN series_info s on b.series_id = s.series_id
-     INNER JOIN read_var r on b.read_var_id = r.read_var_id;
+     INNER JOIN read_var r on b.var = r.var;
 `
 
 const SQLAnkat = SQLProductsDB + SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLAnkatVars + SQLSeries

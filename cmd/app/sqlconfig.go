@@ -31,14 +31,14 @@ CREATE TABLE IF NOT EXISTS value_list(
   UNIQUE (var, value)
 );
 
-INSERT OR IGNORE INTO section(name, sort_order) VALUES 
+INSERT OR REPLACE INTO section(name, sort_order) VALUES 
   ('Связь с приборами', 0),
   ('Пневмоблок', 1),
   ('Термокамера', 2),
   ('Автоматическая настройка', 3)
   ;
 
-INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
+INSERT OR REPLACE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
   ('Связь с приборами', 0, 'comport_products', 'имя СОМ-порта', 'comport_name', NULL, NULL, 'COM1' ),
   ('Связь с приборами', 1, 'comport_products_baud', 'скорость передачи, бод', 'baud', 2400, 256000, 9600 ),
   ('Связь с приборами', 2, 'comport_products_timeout', 'таймаут, мс', 'integer', 10, 10000, 1000 ),
@@ -47,7 +47,7 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Связь с приборами', 5, 'comport_products_bounce_timeout', 'таймаут дребезга, мс', 'integer', 0, 1000, 0 ),
   ('Связь с приборами', 6, 'comport_products_bounce_limit', 'предел дребезга', 'integer', 0, 20, 0 );
 
-INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
+INSERT OR REPLACE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
   ('Пневмоблок', 0, 'comport_gas', 'имя СОМ-порта', 'comport_name', NULL, NULL, 'COM1' ),
   ('Пневмоблок', 1, 'comport_gas_baud', 'скорость передачи, бод', 'baud', 2400, 256000, 9600 ),
   ('Пневмоблок', 2, 'comport_gas_timeout', 'таймаут, мс', 'integer', 10, 10000, 1000 ),
@@ -56,7 +56,7 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Пневмоблок', 5, 'comport_gas_bounce_timeout', 'таймаут дребезга, мс', 'integer', 0, 1000, 0 ),
   ('Пневмоблок', 6, 'comport_gas_bounce_limit', 'предел дребезга', 'integer', 0, 20, 0 );
 
-INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
+INSERT OR REPLACE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
   ('Термокамера', 0, 'comport_temp', 'имя СОМ-порта', 'comport_name', NULL, NULL, 'COM1' ),
   ('Термокамера', 1, 'comport_temp_baud', 'скорость передачи, бод', 'baud', 2400, 256000, 9600 ),
   ('Термокамера', 2, 'comport_temp_timeout', 'таймаут, мс', 'integer', 10, 10000, 1000 ),
@@ -65,7 +65,7 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Термокамера', 5, 'comport_temp_bounce_timeout', 'таймаут дребезга, мс', 'integer', 0, 1000, 0 ),
   ('Термокамера', 6, 'comport_temp_bounce_limit', 'предел дребезга', 'integer', 0, 20, 0 );
 
-INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
+INSERT OR REPLACE INTO config (section_name, sort_order, var, name, type, min, max, value) VALUES
   ('Автоматическая настройка', 0, 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3 ),
   ('Автоматическая настройка', 1, 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3 ),
   ('Автоматическая настройка', 2, 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3 ),
@@ -74,7 +74,7 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
 
 ;
 
-INSERT OR IGNORE INTO value_list(var, value) VALUES
+INSERT OR REPLACE INTO value_list(var, value) VALUES
   ('gas1', 'CH₄'),
   ('gas1', 'C₃H₈'),
   ('gas1', '∑CH'),

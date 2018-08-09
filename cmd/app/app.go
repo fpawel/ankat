@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -40,11 +39,7 @@ func runApp() {
 		comports:  make(map[string]comportState),
 	}
 
-	// внести в базу данных записи технологических процессов
-	for _, k := range ankat.TechProcesses() {
-		x.data.dbProducts.MustExec(`INSERT OR IGNORE INTO tech_process (tech_process_id, name) VALUES (?,?);`,
-			k, ankat.TechProcessName(k))
-	}
+	//x.data.EnsurePartyExists()
 
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
@@ -129,13 +124,21 @@ func runApp() {
 }
 
 func (x *app) sendMessage(productSerial int, level dataworks.Level, text string) {
+	workIndex := 0
+	work := ""
+	if t := x.uiWorks.CurrentRunTask(); t != nil {
+		workIndex = t.Ordinal()
+		work = t.Name()
+	}
+
 	x.delphiApp.Send("CURRENT_WORK_MESSAGE", struct {
-		Work          int
+		WorkIndex     int
+		Work          string
 		CreatedAt     time.Time
 		ProductSerial int
 		Level         dataworks.Level
 		Text          string
 	}{
-		0, time.Now(), productSerial, level, text,
+		workIndex, work, time.Now(), productSerial, level, text,
 	})
 }

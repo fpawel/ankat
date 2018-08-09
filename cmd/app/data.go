@@ -16,7 +16,7 @@ type Product struct {
 }
 
 type Var struct {
-	Var     int  `db:"read_var_id"`
+	Var     int  `db:"var"`
 	Checked bool `db:"checked"`
 	Ordinal int  `db:"ordinal"`
 }
@@ -64,6 +64,10 @@ func (x data) ComportSets(id string) (c comport.Config) {
 	dbMustGet(x.dbConfig, &c.BounceLimit, q, s+"_bounce_limit")
 
 	return
+}
+
+func (x data) EnsurePartyExists() {
+	dataproducts.EnsurePartyExists(x.dbProducts)
 }
 
 func (x data) CurrentPartyValue(name string) float64 {

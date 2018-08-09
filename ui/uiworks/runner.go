@@ -24,6 +24,7 @@ type Runner struct {
 	chDelaySkipped           chan struct{}
 	chWriteLog               chan dataworks.WriteRecord
 	chStartWork              chan runWork
+	chCurrentRunTask         chan chan *Task
 }
 
 type delayInfo struct {
@@ -65,6 +66,7 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 		chDelay:                  make(chan delayInfo),
 		chDelaySkipped:           make(chan struct{}),
 		chWriteLog:               make(chan dataworks.WriteRecord),
+		chCurrentRunTask:         make(chan chan *Task),
 	}
 
 	processMQ.Handle("CURRENT_WORK_START", func(bytes []byte) {
@@ -84,6 +86,12 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 
 func (x Runner) Close() {
 	x.chClose <- struct{}{}
+}
+
+func (x Runner) CurrentRunTask() *Task {
+	ch := make(chan *Task)
+	x.chCurrentRunTask <- ch
+	return <-ch
 }
 
 func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
@@ -108,6 +116,9 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 
 	for {
 		select {
+
+		case ch := <-x.chCurrentRunTask:
+			ch <- currentRunTask
 
 		case <-x.chClose:
 

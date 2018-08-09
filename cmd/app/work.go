@@ -83,7 +83,7 @@ func (x app) runReadVarsWork() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
-				if err := x.doProductDevice(p, x.sendMessage, func(p productDevice) error {
+				x.doProductDevice(p, x.sendMessage, func(p productDevice) error {
 					vars := x.data.CheckedVars()
 					if len(vars) == 0 {
 						vars = x.data.Vars()[:2]
@@ -98,9 +98,7 @@ func (x app) runReadVarsWork() {
 						}
 					}
 					return nil
-				}); err != nil {
-					return err
-				}
+				})
 			}
 		}
 		return nil
@@ -154,20 +152,18 @@ func (x app) doEachProductDevice(logger logger, w func(p productDevice) error) e
 		if x.uiWorks.Interrupted() {
 			return errors.New("прервано")
 		}
-		if err := x.doProductDevice(p, logger, w); err != nil {
-			return errors.Wrapf(err, "прибор: серийный номер %d", p.Serial)
-		}
+		x.doProductDevice(p, logger, w)
 	}
 	return nil
 }
 
-func (x *app) doProductDevice(p Product, logger logger, w func(p productDevice) error) error {
+func (x *app) doProductDevice(p Product, errorLogger logger, w func(p productDevice) error) {
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
 	}{p.Ordinal})
-	port, err := x.comportProduct(p, logger)
+	port, err := x.comportProduct(p, errorLogger)
 	if err != nil {
-		return err
+		return
 	}
 	err = w(productDevice{
 		product:  p,
@@ -176,10 +172,12 @@ func (x *app) doProductDevice(p Product, logger logger, w func(p productDevice) 
 		port:     port,
 		data:     x.data,
 	})
+	if err != nil {
+		errorLogger(p.Serial, dataworks.Error, err.Error())
+	}
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
 	}{-1})
-	return err
 }
 
 func (x *app) doDelayWithReadProducts(what string, duration time.Duration) error {
@@ -269,7 +267,7 @@ func (x *app) doSetupTemperature(temperature float64) error {
 	}
 	deltaTemperature := x.data.ConfigValue("delta_temperature")
 
-	cancelWaitTemperature, chWaitTemperature := termochamber.WaitForTemperature(termochamber.WaitTemperatureConfig{
+	cancelWaitTemperature, chWaitTemperature := termochamber.RunWaitForTemperature(termochamber.WaitTemperatureConfig{
 		ReadTemperature: func() (float64, error) {
 			return termochamber.T800Read(port)
 		},
