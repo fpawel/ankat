@@ -83,18 +83,13 @@ CREATE TABLE IF NOT EXISTS party_value (
   party_id INTEGER NOT NULL,
   value NOT NULL,
   UNIQUE (party_id,  var),
-  FOREIGN KEY(var) REFERENCES party_var(var) ON DELETE CASCADE,
+  FOREIGN KEY(var) REFERENCES party_var(var),
   FOREIGN KEY(party_id) REFERENCES party(party_id) ON DELETE CASCADE
 );
 
 CREATE VIEW IF NOT EXISTS party_value2 AS
   SELECT party_id, name, value FROM party_value
     INNER JOIN party_var ON party_value.var = party_var.var;
-
-CREATE TABLE IF NOT EXISTS tech_process(
-  tech_process_id TEXT NOT NULL PRIMARY KEY,
-  name TEXT NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS read_var(
   var INTEGER NOT NULL PRIMARY KEY CHECK (typeof(var)='integer' AND  var >= 0),
@@ -120,10 +115,9 @@ CREATE TABLE IF NOT EXISTS product_value(
 
   UNIQUE (party_id, product_serial, section, point, var),
 
-  FOREIGN KEY( var) REFERENCES read_var(var) ON DELETE CASCADE,
+  FOREIGN KEY( var) REFERENCES read_var(var),
   FOREIGN KEY(party_id, product_serial)
-  REFERENCES product(party_id, product_serial)
-    ON DELETE CASCADE
+  REFERENCES product(party_id, product_serial) ON DELETE CASCADE
 );
 `
 
@@ -160,7 +154,7 @@ CREATE VIEW IF NOT EXISTS party_info AS
 
 const SQLAnkatVars = `
 
-INSERT OR REPLACE  INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
+INSERT OR IGNORE INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
   (0, 'product_type_number', 'номер исполнения', 'integer', 1, NULL , 10),
   (1, 'sensors_count', 'количество каналов', 'integer', 1, 2, 1),
   (2, 'gas1', 'газ к.1', 'text', NULL, NULL, 'CH₄' ),
@@ -176,7 +170,7 @@ INSERT OR REPLACE  INTO party_var(sort_order, var, name, type, min, max, def_val
   (12, 't-', 'T-,"С', 'real', NULL, NULL, -30 ),
   (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
 
-INSERT OR REPLACE INTO read_var (var, name, description) VALUES
+INSERT OR IGNORE INTO read_var (var, name, description) VALUES
   (0, 'CCh0', 'концентрация - канал 1 (электрохимия 1)'),
   (2, 'CCh1', 'концентрация - канал 2 (электрохимия 2/оптика 1)'),
   (4, 'CCh2', 'концентрация - канал 3 (оптика 1/оптика 2)'),
@@ -222,8 +216,8 @@ CREATE TABLE IF NOT EXISTS work (
   work_name TEXT,
   work_index INTEGER,
   party_id INTEGER,
-  FOREIGN KEY(parent_work_id) REFERENCES work(work_id) ON DELETE CASCADE,
-  FOREIGN KEY(party_id) REFERENCES party(party_id)  ON DELETE CASCADE
+  FOREIGN KEY(parent_work_id) REFERENCES work(work_id),
+  FOREIGN KEY(party_id) REFERENCES party(party_id) ON DELETE CASCADE
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_validate_work_party_id
@@ -243,7 +237,7 @@ CREATE TABLE IF NOT EXISTS work_log (
   product_serial INTEGER,
   level INTEGER NOT NULL CHECK (level >= 0),
   message TEXT NOT NULL CHECK (message != ''),
-  FOREIGN KEY(work_id) REFERENCES work(work_id) ON DELETE CASCADE
+  FOREIGN KEY(work_id) REFERENCES work(work_id)
 );
 
 CREATE VIEW IF NOT EXISTS work_log2 AS
@@ -294,7 +288,7 @@ CREATE TABLE IF NOT EXISTS product_coefficient_value(
   UNIQUE (party_id, product_serial, coefficient_id),
 
   FOREIGN KEY(coefficient_id)
-    REFERENCES coefficient(coefficient_id) ON DELETE CASCADE,
+    REFERENCES coefficient(coefficient_id),
   FOREIGN KEY(party_id, product_serial)
     REFERENCES product(party_id, product_serial) ON DELETE CASCADE
 );
@@ -305,7 +299,7 @@ CREATE VIEW IF NOT EXISTS current_party_coefficient_value AS
     INNER JOIN current_party_products_config b ON a.product_serial = b.product_serial
   WHERE party_id IN current_party_id;
 
-INSERT OR REPLACE INTO coefficient (coefficient_id, name, description) VALUES
+INSERT OR IGNORE INTO coefficient (coefficient_id, name, description) VALUES
   (0, 'VER_PO', 'номер версии ПО'),
   (1, 'PPRIBOR_TYPE', 'номер исполнения прибора'),
   (2, 'YEAR', 'год выпуска'),
@@ -371,7 +365,7 @@ CREATE TABLE IF NOT EXISTS command (
   description TEXT NOT NULL
 );
 
-INSERT OR REPLACE INTO command VALUES
+INSERT OR IGNORE INTO command VALUES
   (1, 'Коррекция нуля 1'),
   (2, 'Коррекция конца шкалы 1'),
   (4, 'Коррекция нуля 2'),
@@ -389,7 +383,7 @@ CREATE TABLE IF NOT EXISTS series (
   series_id INTEGER PRIMARY KEY,
   created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   work_id INTEGER NOT NULL,
-  FOREIGN KEY(work_id) REFERENCES work(work_id)  ON DELETE CASCADE
+  FOREIGN KEY(work_id) REFERENCES work(work_id) 
 );
 
 CREATE VIEW IF NOT EXISTS series_info AS
@@ -412,8 +406,8 @@ CREATE TABLE IF NOT EXISTS chart_value (
 
   UNIQUE (series_id, product_serial, var, x),
 
-  FOREIGN KEY(series_id) REFERENCES series(series_id)  ON DELETE CASCADE,
-  FOREIGN KEY(var) REFERENCES read_var(var)  ON DELETE CASCADE
+  FOREIGN KEY(series_id) REFERENCES series(series_id) ON DELETE CASCADE,
+  FOREIGN KEY(var) REFERENCES read_var(var) 
 );
 
 CREATE VIEW IF NOT EXISTS last_series AS

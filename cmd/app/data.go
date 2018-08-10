@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/jmoiron/sqlx"
@@ -9,29 +10,29 @@ import (
 )
 
 type Product struct {
-	Checked bool   `db:"checked"`
-	Comport string `db:"comport"`
-	Serial  int    `db:"product_serial"`
-	Ordinal int    `db:"ordinal"`
+	Checked bool                `db:"checked"`
+	Comport string              `db:"comport"`
+	Serial  ankat.ProductSerial `db:"product_serial"`
+	Ordinal int                 `db:"ordinal"`
 }
 
 type Var struct {
-	Var     int  `db:"var"`
-	Checked bool `db:"checked"`
-	Ordinal int  `db:"ordinal"`
+	Var     ankat.Var `db:"var"`
+	Checked bool      `db:"checked"`
+	Ordinal int       `db:"ordinal"`
 }
 
 type Coefficient struct {
-	Coefficient int  `db:"coefficient_id"`
-	Checked     bool `db:"checked"`
-	Ordinal     int  `db:"ordinal"`
+	Coefficient ankat.Coefficient `db:"coefficient_id"`
+	Checked     bool              `db:"checked"`
+	Ordinal     int               `db:"ordinal"`
 }
 
-type data struct {
+type db struct {
 	dbConfig, dbProducts *sqlx.DB
 }
 
-func (x data) formatCmd(cmd uint16) (s string) {
+func (x db) formatCmd(cmd uint16) (s string) {
 	var xs []string
 	dbMustSelect(x.dbProducts, &xs, `SELECT description FROM command WHERE command_id = $1;`, cmd)
 	if len(xs) == 0 {
@@ -42,7 +43,7 @@ func (x data) formatCmd(cmd uint16) (s string) {
 	return
 }
 
-func (x data) ComportSets(id string) (c comport.Config) {
+func (x db) ComportSets(id string) (c comport.Config) {
 	c.Serial.ReadTimeout = time.Millisecond
 
 	s := "comport_" + id
@@ -66,84 +67,112 @@ func (x data) ComportSets(id string) (c comport.Config) {
 	return
 }
 
-func (x data) EnsurePartyExists() {
-	dataproducts.EnsurePartyExists(x.dbProducts)
+func (x db) ProductValue(partyID ankat.PartyID, serial ankat.ProductSerial, p ankat.ProductVar) (value float64, exits bool) {
+	var xs []float64
+	dbMustSelect(x.dbProducts, &xs, `
+SELECT value FROM product_value 
+WHERE party_id = ? AND product_serial=? AND var = ? AND section = ? AND point = ?;`,
+		partyID, serial, p.Var, p.Sect, p.Point)
+	if len(xs) == 0 {
+		return
+	}
+	if len(xs) > 1 {
+		panic("len must be 1 or 0")
+	}
+	value = xs[0]
+	exits = true
+	return
 }
 
-func (x data) CurrentPartyValue(name string) float64 {
+func (x db) CurrentPartyID() (currentPartyID ankat.PartyID) {
+	dbMustGet(x.dbProducts, &currentPartyID, `SELECT party_id FROM current_party`)
+	return
+}
+
+func (x db) CurrentPartyProductValue(serial ankat.ProductSerial, p ankat.ProductVar) (float64, bool) {
+	return x.ProductValue(x.CurrentPartyID(), serial, p)
+}
+
+func (x db) SetProductValue(serial ankat.ProductSerial, p ankat.ProductVar, value float64) {
+	x.dbProducts.MustExec(`
+INSERT OR REPLACE INTO product_value (party_id, product_serial, section, point, var, value)
+VALUES ((SELECT * FROM current_party_id), ?, ?, ?, ?, ?); `, serial, p.Sect, p.Point, p.Var, value)
+}
+
+func (x db) CurrentPartyValue(name string) float64 {
 	return dataproducts.CurrentPartyValue(x.dbProducts, name)
 }
 
-func (x data) CurrentPartyValueStr(name string) (value string) {
+func (x db) CurrentPartyValueStr(name string) (value string) {
 	return dataproducts.CurrentPartyValueStr(x.dbProducts, name)
 }
 
-func (x data) IsTwoConcentrationChannels() bool {
+func (x db) IsTwoConcentrationChannels() bool {
 	return x.CurrentPartyValue("sensors_count") == 2
 }
 
-func (x data) CheckedVars() (vars []Var) {
+func (x db) CheckedVars() (vars []Var) {
 	dbMustSelect(x.dbProducts, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
 	return
 }
 
-func (x data) Vars() (vars []Var) {
+func (x db) Vars() (vars []Var) {
 	dbMustSelect(x.dbProducts, &vars, `SELECT * FROM read_var_enumerated`)
 	return
 }
 
-func (x data) Coefficients() (coefficients []Coefficient) {
+func (x db) Coefficients() (coefficients []Coefficient) {
 	dbMustSelect(x.dbProducts, &coefficients, `SELECT * FROM coefficient_enumerated`)
 	return
 }
 
-func (x data) CheckedCoefficients() (coefficients []Coefficient) {
+func (x db) CheckedCoefficients() (coefficients []Coefficient) {
 	dbMustSelect(x.dbProducts, &coefficients, `SELECT * FROM coefficient_enumerated WHERE checked =1`)
 	return
 }
 
-func (x data) ProductsCount() (n int) {
+func (x db) ProductsCount() (n int) {
 	dbMustGet(x.dbProducts, &n, `SELECT count(*) FROM current_party_products`)
 	return
 }
 
-func (x data) Products() (products []Product) {
+func (x db) Products() (products []Product) {
 	dbMustSelect(x.dbProducts, &products, `SELECT * FROM current_party_products_config;`)
 	return
 }
 
-func (x data) CheckedProducts() (products []Product) {
+func (x db) CheckedProducts() (products []Product) {
 	dbMustSelect(x.dbProducts, &products,
 		`SELECT * FROM current_party_products_config WHERE checked=1;`)
 	return
 }
 
-func (x data) Product(n int) (p Product) {
+func (x db) Product(n int) (p Product) {
 	dbMustGet(x.dbProducts, &p, `SELECT * FROM current_party_products_config WHERE ordinal = $1;`, n)
 	return
 }
 
-func (x data) SetCoefficientValue(productSerial, coefficient int, value float64) {
+func (x db) SetCoefficientValue(productSerial ankat.ProductSerial, coefficient ankat.Coefficient, value float64) {
 	dataproducts.SetCoefficientValue(x.dbProducts, productSerial, coefficient, value)
 }
 
-func (x data) CoefficientValue(productSerial, coefficient int) (float64, bool) {
+func (x db) CoefficientValue(productSerial ankat.ProductSerial, coefficient ankat.Coefficient) (float64, bool) {
 	return dataproducts.CoefficientValue(x.dbProducts, productSerial, coefficient)
 }
 
-func (x data) ComportProductsBounceTimeout() time.Duration {
+func (x db) ComportProductsBounceTimeout() time.Duration {
 	var n time.Duration
 	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = 'comport_products_bounce_timeout';`)
 	return n * time.Millisecond
 }
 
-func (x data) ConfigDuration(name string) time.Duration {
+func (x db) ConfigDuration(name string) time.Duration {
 	var n time.Duration
 	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
 	return n
 }
 
-func (x data) ConfigValue(name string) float64 {
+func (x db) ConfigValue(name string) float64 {
 	var n float64
 	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
 	return n

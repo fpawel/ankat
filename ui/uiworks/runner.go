@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/procmq"
 	"time"
 
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/jmoiron/sqlx"
 )
@@ -252,7 +253,7 @@ func (x Runner) SubscribeInterrupted(ch chan struct{}, subscribe bool) {
 	}
 }
 
-func (x Runner) WriteLog(productSerial int, level dataworks.Level, text string) {
+func (x Runner) WriteLog(productSerial ankat.ProductSerial, level dataworks.Level, text string) {
 	x.chWriteLog <- dataworks.WriteRecord{
 		Level:         level,
 		Text:          text,
@@ -260,7 +261,7 @@ func (x Runner) WriteLog(productSerial int, level dataworks.Level, text string) 
 	}
 }
 
-func (x Runner) WriteLogf(productSerial int, level dataworks.Level, format string, a ...interface{}) {
+func (x Runner) WriteLogf(productSerial ankat.ProductSerial, level dataworks.Level, format string, a ...interface{}) {
 	x.WriteLog(productSerial, level, fmt.Sprintf(format, a...))
 }
 

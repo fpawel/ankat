@@ -1,6 +1,7 @@
 package dataworks
 
 import (
+	"github.com/fpawel/ankat"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
@@ -27,7 +28,7 @@ const (
 
 type WriteRecord struct {
 	Works         []Work
-	ProductSerial int
+	ProductSerial ankat.ProductSerial
 	Level         Level
 	Text          string
 }
@@ -73,7 +74,7 @@ func Write(x *sqlx.DB, w WriteRecord) (m CurrentWorkMessage) {
 
 	EnsureCurrentWorks(x, w.Works)
 
-	var productSerial *int
+	var productSerial *ankat.ProductSerial
 	if w.ProductSerial > 0 {
 		productSerial = &w.ProductSerial
 	}

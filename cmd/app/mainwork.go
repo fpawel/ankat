@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (x *app) mainWork() uiworks.Work {
+func (x app) mainWork() uiworks.Work {
 
 	return uiworks.L("Настройка Анкат",
 		x.workSetupAndHoldTemperature(20),
@@ -38,7 +38,7 @@ func (x *app) mainWork() uiworks.Work {
 		x.workEachProduct("Установка коэффициентов", func(p productDevice) error {
 			err := p.writeInitCoefficients()
 			if err == nil {
-				for _, k := range x.data.Coefficients() {
+				for _, k := range x.db.Coefficients() {
 					if _, err = p.readCoefficient(k.Coefficient); err != nil {
 						break
 					}
@@ -59,7 +59,7 @@ func (x *app) mainWork() uiworks.Work {
 				return errors.Wrap(err,
 					"не удалось выполнить команду для нормировки канала 1")
 			}
-			if x.data.IsTwoConcentrationChannels() {
+			if x.db.IsTwoConcentrationChannels() {
 				err := x.sendCmd(9, 100)
 				return errors.Wrap(err,
 					"не удалось выполнить команду для нормировки канала 2")
@@ -72,12 +72,12 @@ func (x *app) mainWork() uiworks.Work {
 				return errors.Wrap(err,
 					"не удалось продуть азот")
 			}
-			nitrogenConcentration := x.data.CurrentPartyValue("c_gas1")
+			nitrogenConcentration := x.db.CurrentPartyValue("c_gas1")
 			if err := x.sendCmd(1, nitrogenConcentration); err != nil {
 				return errors.Wrap(err,
 					"не удалось выполнить команду калибровки начала шкалы канала 1")
 			}
-			if x.data.IsTwoConcentrationChannels() {
+			if x.db.IsTwoConcentrationChannels() {
 				if err := x.sendCmd(4, nitrogenConcentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки начала шкалы канала 2")
@@ -92,17 +92,17 @@ func (x *app) mainWork() uiworks.Work {
 				return errors.Wrap(err,
 					"не удалось продуть середину шкалы канала 1")
 			}
-			concentration := x.data.CurrentPartyValue("c_gas2ch1")
+			concentration := x.db.CurrentPartyValue("c_gas2ch1")
 			if err := x.sendCmd(2, concentration); err != nil {
 				return errors.Wrap(err,
 					"не удалось выполнить команду калибровки чувствительности канала 1")
 			}
-			if x.data.IsTwoConcentrationChannels() {
+			if x.db.IsTwoConcentrationChannels() {
 				if err := x.blowGas(ankat.GasChan2Middle); err != nil {
 					return errors.Wrap(err,
 						"не удалось продуть середину шкалы канала 2")
 				}
-				concentration = x.data.CurrentPartyValue("c_gas2ch2")
+				concentration = x.db.CurrentPartyValue("c_gas2ch2")
 				if err := x.sendCmd(5, concentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки чувствительности канала 2")
@@ -117,16 +117,39 @@ func (x *app) mainWork() uiworks.Work {
 
 			return nil
 		}),
-
-		uiworks.S("Снятие для линеаризации", func() error {
-			return nil
-		}),
+		x.workLin(),
 	)
 }
 
-//func (x *app) workLinPoint(gas ankat.GasCode) uiworks.Work {
-//
-//}
+func (x *app) workLin() (r uiworks.Work) {
+	r.Name = "Снятие для линеаризации"
+
+	gases := []ankat.GasCode{
+		ankat.GasNitrogen,
+		ankat.GasChan1Middle1,
+	}
+	if x.db.CurrentPartyValueStr("gas1") == "CO₂" {
+		gases = append(gases, ankat.GasChan1Middle2)
+	}
+	gases = append(gases, ankat.GasChan1End)
+	if x.db.IsTwoConcentrationChannels() {
+		gases = append(gases, ankat.GasChan2Middle)
+		gases = append(gases, ankat.GasChan2End)
+	}
+	for _, gas := range gases {
+		gas := gas
+		what := fmt.Sprintf("%s: снятие для линеаризации", ankat.GasCodeDescription(gas))
+		r.Children = append(r.Children, uiworks.S(what, func() error {
+			if err := x.blowGas(gas); err != nil {
+				return err
+			}
+			return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
+				return p.fixVarsValues(ankat.LinProductVars(gas))
+			})
+		}))
+	}
+	return
+}
 
 func (x app) workEachProduct(name string, work func(p productDevice) error) uiworks.Work {
 	return uiworks.S(name, func() error {
@@ -134,14 +157,14 @@ func (x app) workEachProduct(name string, work func(p productDevice) error) uiwo
 	})
 }
 
-func (x *app) workSendSetWorkMode(mode float64) uiworks.Work {
+func (x app) workSendSetWorkMode(mode float64) uiworks.Work {
 	return x.workEachProduct(fmt.Sprintf("Установка режима работы: %v", mode), func(p productDevice) error {
 		_ = p.sendSetWorkModeCmd(mode)
 		return nil
 	})
 }
 
-func (x *app) workNorming() uiworks.Work {
+func (x app) workNorming() uiworks.Work {
 
 	return uiworks.S("Нормировка каналов измерения", func() error {
 		if err := x.blowGas(ankat.GasNitrogen); err != nil {
@@ -150,14 +173,14 @@ func (x *app) workNorming() uiworks.Work {
 		if err := x.sendCmd(8, 100); err != nil {
 			return err
 		}
-		if x.data.IsTwoConcentrationChannels() {
+		if x.db.IsTwoConcentrationChannels() {
 			return x.sendCmd(9, 100)
 		}
 		return nil
 	})
 }
 
-func (x *app) workSetupAndHoldTemperature(temperature float64) uiworks.Work {
+func (x app) workSetupAndHoldTemperature(temperature float64) uiworks.Work {
 	return uiworks.S(fmt.Sprintf("Установка термокамеры %v\"C", temperature), func() error {
 		return x.setupAndHoldTemperature(temperature)
 	})

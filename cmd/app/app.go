@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -16,7 +17,7 @@ import (
 
 type app struct {
 	uiWorks   uiworks.Runner
-	data      data
+	db        db
 	delphiApp *procmq.ProcessMQ
 	comports  map[string]comportState
 }
@@ -26,12 +27,12 @@ type comportState struct {
 	err     error
 }
 
-type logger = func(productSerial int, level dataworks.Level, text string)
+type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, text string)
 
 func runApp() {
 
 	x := &app{
-		data: data{
+		db: db{
 			dbConfig:   dbMustOpen("config.db", SQLConfigDB),
 			dbProducts: dbMustOpen("products.db", dataproducts.SQLAnkat),
 		},
@@ -39,7 +40,7 @@ func runApp() {
 		comports:  make(map[string]comportState),
 	}
 
-	//x.data.EnsurePartyExists()
+	//x.db.EnsurePartyExists()
 
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
@@ -49,7 +50,7 @@ func runApp() {
 			CheckState string
 		}
 		mustUnmarshalJson(bytes, &v)
-		x.data.dbConfig.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
+		x.db.dbConfig.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
 			v.Ordinal, v.CheckState)
 	})
 
@@ -114,16 +115,16 @@ func runApp() {
 	}()
 
 	go func() {
-		x.uiWorks.Run(x.data.dbProducts, x.data.dbConfig, x.mainWork().Task())
+		x.uiWorks.Run(x.db.dbProducts, x.db.dbConfig, x.mainWork().Task())
 		wg.Done()
 	}()
 
-	x.delphiApp.Send("SETUP_CURRENT_WORKS", x.mainWork().Task().Info(x.data.dbProducts))
+	x.delphiApp.Send("SETUP_CURRENT_WORKS", x.mainWork().Task().Info(x.db.dbProducts))
 	fmt.Println("delphiApp started")
 	wg.Wait()
 }
 
-func (x *app) sendMessage(productSerial int, level dataworks.Level, text string) {
+func (x *app) sendMessage(productSerial ankat.ProductSerial, level dataworks.Level, text string) {
 	workIndex := 0
 	work := ""
 	if t := x.uiWorks.CurrentRunTask(); t != nil {
@@ -135,7 +136,7 @@ func (x *app) sendMessage(productSerial int, level dataworks.Level, text string)
 		WorkIndex     int
 		Work          string
 		CreatedAt     time.Time
-		ProductSerial int
+		ProductSerial ankat.ProductSerial
 		Level         dataworks.Level
 		Text          string
 	}{

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -21,7 +22,7 @@ type productDevice struct {
 	product  Product
 	pipe     *procmq.ProcessMQ
 	workCtrl uiworks.Runner
-	data     data
+	data     db
 }
 
 type readProductResult struct {
@@ -49,12 +50,24 @@ func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err erro
 	pipe.Send("PRODUCT_CONNECTED", b)
 }
 
+func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
+	for _, pv := range vars {
+		value, err := x.readVar(pv.Var)
+		if err != nil {
+			return errors.Wrapf(err, "сохранение: %s: РЕГ:%d ТОЧКА:%d", pv.Sect, pv.Var, pv.Point)
+		}
+		x.data.SetProductValue(x.product.Serial, pv, value)
+		x.writeInfof("сохранение: %s: РЕГ:%d ТОЧКА:%d = %v", pv.Sect, pv.Var, pv.Point, value)
+	}
+	return nil
+}
+
 func (x productDevice) notifyConnected(err error, format string, a ...interface{}) {
 	notifyProductConnected(x.product.Ordinal, x.pipe, err, format, a...)
 }
 
-func (x productDevice) readCoefficient(coefficient int) (value float64, err error) {
-	req := modbus.NewReadCoefficient(1, coefficient)
+func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value float64, err error) {
+	req := modbus.NewReadCoefficient(1, int(coefficient))
 	var bytes []byte
 	bytes, err = x.port.Fetch(req.Bytes())
 	if fetch.Canceled(err) {
@@ -87,7 +100,7 @@ func (x productDevice) readCoefficient(coefficient int) (value float64, err erro
 	return value, err
 }
 
-func (x productDevice) readVar(v int) (value float64, err error) {
+func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 	req := modbus.NewReadBCD(1, uint16(v))
 
 	var bytes []byte
@@ -116,7 +129,7 @@ func (x productDevice) readVar(v int) (value float64, err error) {
 
 func (x productDevice) writeInitCoefficients() error {
 	type cv struct {
-		Coefficient int
+		Coefficient ankat.Coefficient
 		Value       float64
 	}
 
@@ -255,7 +268,7 @@ func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 	return err
 }
 
-func (x productDevice) writeCoefficient(coefficient int) error {
+func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	v, exists := x.data.CoefficientValue(x.product.Serial, coefficient)
 	if !exists {
 		x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, fmt.Sprintf(
@@ -288,7 +301,7 @@ func (x productDevice) writeCoefficient(coefficient int) error {
 	return err
 }
 
-func (x productDevice) writeCoefficientValue(coefficient int, value float64) error {
+func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
 
 	err := x.sendCmd(uint16((0x80<<8)+coefficient), value)
 

@@ -1,15 +1,16 @@
 package dataproducts
 
 import (
+	"github.com/fpawel/ankat"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
 
 type Series struct {
-	PartyID   PartyID   `db:"party_id"`
-	CreatedAt time.Time `db:"created_at"`
-	SeriesID  int64     `db:"series_id"`
-	Name      string    `db:"name"`
+	PartyID   ankat.PartyID `db:"party_id"`
+	CreatedAt time.Time     `db:"created_at"`
+	SeriesID  int64         `db:"series_id"`
+	Name      string        `db:"name"`
 }
 
 func CreateNewSeries(x *sqlx.DB) {
@@ -23,7 +24,7 @@ func GetLastSeries() (x *sqlx.DB, series Series) {
 	return
 }
 
-func AddChartValue(x *sqlx.DB, serial, keyVar int, value float64) {
+func AddChartValue(x *sqlx.DB, serial ankat.ProductSerial, keyVar ankat.Var, value float64) {
 	x.MustExec(`
 INSERT INTO chart_value (series_id, product_serial, var, x, y)
 VALUES

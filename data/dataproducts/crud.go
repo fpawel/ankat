@@ -1,72 +1,71 @@
 package dataproducts
 
 import (
+	"github.com/fpawel/ankat"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
 )
 
-type PartyID int64
-
 type Party struct {
-	PartyID     PartyID   `db:"party_id"`
-	CreatedAt   time.Time `db:"created_at"`
-	ProductType string    `db:"product_type"`
-	Products    []int     `db:"-"`
+	PartyID     ankat.PartyID         `db:"party_id"`
+	CreatedAt   time.Time             `db:"created_at"`
+	ProductType string                `db:"product_type"`
+	Products    []ankat.ProductSerial `db:"-"`
 }
 
 type KeyValue struct {
 	Key, Value interface{}
 }
 
-func EnsurePartyExists(x *sqlx.DB) {
-	var exists bool
-	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
-	if exists {
-		return
-	}
-	x.MustExec(`
-INSERT INTO party(party_id)  VALUES(1);
-INSERT INTO product(party_id, product_serial) VALUES (1,1), (1,2), (1,3), (1,4), (1,5);`)
+//func EnsurePartyExists(x *sqlx.DB) {
+//	var exists bool
+//	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
+//	if exists {
+//		return
+//	}
+//	x.MustExec(`
+//INSERT INTO party(party_id)  VALUES(1);
+//INSERT INTO product(party_id, product_serial) VALUES (1,1), (1,2), (1,3), (1,4), (1,5);`)
+//
+//	var vars []string
+//	dbMustSelect(x, &vars, `SELECT var FROM party_var`)
+//
+//	const (
+//		sqlDefVal = `SELECT def_val FROM party_var WHERE var = ?`
+//		sqlSet    = `INSERT INTO party_value (party_id, var, value) VALUES (1, ?, ?);`
+//	)
+//	for _, aVar := range vars {
+//
+//		var strType string
+//		dbMustGet(x, &strType, `SELECT type FROM party_var WHERE var = ?`, aVar)
+//		switch strType {
+//		case "integer":
+//			var value int
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		case "text":
+//			var value string
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		case "real":
+//			var value float64
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		default:
+//			panic(strType)
+//		}
+//	}
+//}
 
-	var vars []string
-	dbMustSelect(x, &vars, `SELECT var FROM party_var`)
-
-	const (
-		sqlDefVal = `SELECT def_val FROM party_var WHERE var = ?`
-		sqlSet    = `INSERT INTO party_value (party_id, var, value) VALUES (1, ?, ?);`
-	)
-	for _, aVar := range vars {
-
-		var strType string
-		dbMustGet(x, &strType, `SELECT type FROM party_var WHERE var = ?`, aVar)
-		switch strType {
-		case "integer":
-			var value int
-			dbMustGet(x, &value, sqlDefVal, aVar)
-			x.MustExec(sqlSet, aVar, value)
-		case "text":
-			var value string
-			dbMustGet(x, &value, sqlDefVal, aVar)
-			x.MustExec(sqlSet, aVar, value)
-		case "real":
-			var value float64
-			dbMustGet(x, &value, sqlDefVal, aVar)
-			x.MustExec(sqlSet, aVar, value)
-		default:
-			panic(strType)
-		}
-	}
-}
-
-func SetCoefficientValue(x *sqlx.DB, productSerial, coefficient int, value float64) {
+func SetCoefficientValue(x *sqlx.DB, productSerial ankat.ProductSerial, coefficient ankat.Coefficient, value float64) {
 	x.MustExec(`
 INSERT OR REPLACE INTO product_coefficient_value (party_id, product_serial, coefficient_id, value)
 VALUES ((SELECT * FROM current_party_id),
         $1, $2, $3); `, productSerial, coefficient, value)
 }
 
-func CoefficientValue(x *sqlx.DB, productSerial, coefficient int) (value float64, exits bool) {
+func CoefficientValue(x *sqlx.DB, productSerial ankat.ProductSerial, coefficient ankat.Coefficient) (value float64, exits bool) {
 	var xs []float64
 	dbMustSelect(x, &xs, `
 SELECT value FROM current_party_coefficient_value 
