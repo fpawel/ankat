@@ -128,7 +128,7 @@ func (x *app) workLin() (r uiworks.Work) {
 		ankat.GasNitrogen,
 		ankat.GasChan1Middle1,
 	}
-	if x.db.CurrentPartyValueStr("gas1") == "CO₂" {
+	if x.db.IsCO2() {
 		gases = append(gases, ankat.GasChan1Middle2)
 	}
 	gases = append(gases, ankat.GasChan1End)

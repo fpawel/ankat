@@ -97,6 +97,10 @@ func runApp() {
 		}
 	})
 
+	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) {
+		x.delphiApp.Send("SETUP_CURRENT_WORKS", x.mainWork().Task().Info(x.db.dbProducts))
+	})
+
 	fmt.Println("delphiApp connecting...")
 	if err := x.delphiApp.Connect(); err != nil {
 		panic(err)
@@ -119,7 +123,7 @@ func runApp() {
 		wg.Done()
 	}()
 
-	x.delphiApp.Send("SETUP_CURRENT_WORKS", x.mainWork().Task().Info(x.db.dbProducts))
+
 	fmt.Println("delphiApp started")
 	wg.Wait()
 }

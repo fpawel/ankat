@@ -103,12 +103,20 @@ func (x db) CurrentPartyValue(name string) float64 {
 	return dataproducts.CurrentPartyValue(x.dbProducts, name)
 }
 
+//func (x db) TryCurrentPartyValueStr(name string) (string, bool) {
+//	return dataproducts.TryCurrentPartyValueStr(x.dbProducts, name)
+//}
+
 func (x db) CurrentPartyValueStr(name string) (value string) {
 	return dataproducts.CurrentPartyValueStr(x.dbProducts, name)
 }
 
 func (x db) IsTwoConcentrationChannels() bool {
-	return x.CurrentPartyValue("sensors_count") == 2
+	return x.CurrentPartyValue("sensors_count")  == 2
+}
+
+func (x db) IsCO2() bool {
+	return x.CurrentPartyValueStr("gas1") == "CO₂"
 }
 
 func (x db) CheckedVars() (vars []Var) {

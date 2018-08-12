@@ -84,6 +84,27 @@ WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
 	return
 }
 
+//func TryCurrentPartyValueStr(x *sqlx.DB, name string) (value string, exists bool) {
+//	var s []string
+//	dbMustSelect(x, &s, `SELECT value FROM party_value WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
+//	if len(s) == 1 {
+//		value = s[0]
+//		exists = true
+//	}
+//	return
+//}
+//
+//func TryCurrentPartyValue(x *sqlx.DB, name string) (value float64, exists bool) {
+//	var v []float64
+//	dbMustSelect(x, &v, `SELECT value FROM party_value WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
+//	if len(v) == 1 {
+//		value = v[0]
+//		exists = true
+//	}
+//	return
+//}
+
+
 func CurrentPartyValueStr(x *sqlx.DB, name string) (value string) {
 	dbMustGet(x, &value, `
 SELECT value FROM party_value 
