@@ -356,10 +356,9 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 	k49, err := x.readCoefficient(49)
 	if err != nil {
 		return wrapErr(errors.Wrap(err, "не удалось считать коэффициент 49"))
-
 	}
 
-	temperatureTermoChamber, err := termochamber.T800Read(portTermo)
+	temperatureChamber, err := termochamber.T800Read(portTermo)
 	if err != nil {
 		return wrapErr(errors.Wrap(err, "не удалось считать температуру термокамеры"))
 	}
@@ -369,12 +368,12 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 		return wrapErr(errors.Wrap(err, "не удалось считать температуру микроконтроллера"))
 	}
 
-	err = x.writeCoefficientValue(49, k49+temperatureTermoChamber-temperatureCPU)
+	err = x.writeCoefficientValue(49, k49+temperatureChamber-temperatureCPU)
 	if err != nil {
 		return wrapErr(errors.Wrap(err, "не удалось записать коэффициент 49"))
 	}
 
-	if math.Abs(temperatureTermoChamber-temperatureCPU) > 3 {
+	if math.Abs(temperatureChamber-temperatureCPU) > 3 {
 		if attemptNumber < maxAttemptsLimit {
 			return x.doAdjustTemperatureCPU(portTermo, attemptNumber+1)
 		}

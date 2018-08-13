@@ -138,8 +138,7 @@ func (x *app) workLin() (r uiworks.Work) {
 	}
 	for _, gas := range gases {
 		gas := gas
-		what := fmt.Sprintf("%s: снятие для линеаризации", ankat.GasCodeDescription(gas))
-		r.Children = append(r.Children, uiworks.S(what, func() error {
+		r.Children = append(r.Children, uiworks.S(ankat.GasCodeDescription(gas), func() error {
 			if err := x.blowGas(gas); err != nil {
 				return err
 			}
