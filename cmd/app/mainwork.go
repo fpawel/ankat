@@ -19,7 +19,7 @@ func (x app) mainWork() uiworks.Work {
 			if err != nil {
 				return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 			}
-			return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
+			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 				err := p.doAdjustTemperatureCPU(portTemperature, 0)
 				if err == nil {
 					p.writeInfo("температура CPU откорректирована успешно")
@@ -117,12 +117,42 @@ func (x app) mainWork() uiworks.Work {
 
 			return nil
 		}),
-		x.workLin(),
+		x.workSaveLin(),
+		x.workCalculateLin(),
 	)
 }
 
-func (x *app) workLin() (r uiworks.Work) {
-	r.Name = "Снятие для линеаризации"
+func (x *app) workCalculateLin() (r uiworks.Work) {
+	r = uiworks.L("Расчёт линеаризации",
+		uiworks.S("Канал 1", func() error {
+			x.doEachProductData(func(p productData) {
+				coefficients, xs, err := p.calculateLin1Coefficients()
+				if err != nil {
+					p.writeErrorf("расчёт %v не удался: %v", ankat.Lin1, err)
+				} else {
+					p.writeInfof("расчёт %v: %v: %v", ankat.Lin1, xs, coefficients)
+				}
+			})
+			return nil
+		}))
+	if x.db.IsTwoConcentrationChannels() {
+		r.Children = append(r.Children, uiworks.S("Канал 2", func() error {
+			x.doEachProductData(func(p productData) {
+				coefficients, xs, err := p.calculateLin2Coefficients()
+				if err != nil {
+					p.writeErrorf("расчёт %v не удался: %v", ankat.Lin2, err)
+				} else {
+					p.writeInfof("расчёт %v: %v: %v", ankat.Lin2, xs, coefficients)
+				}
+			})
+			return nil
+		}))
+	}
+	return r
+}
+
+func (x *app) workSaveLin() (r uiworks.Work) {
+	r.Name = "Снятие линеаризации"
 
 	gases := []ankat.GasCode{
 		ankat.GasNitrogen,
@@ -142,7 +172,7 @@ func (x *app) workLin() (r uiworks.Work) {
 			if err := x.blowGas(gas); err != nil {
 				return err
 			}
-			return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
+			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 				return p.fixVarsValues(ankat.LinProductVars(gas))
 			})
 		}))
@@ -152,7 +182,7 @@ func (x *app) workLin() (r uiworks.Work) {
 
 func (x app) workEachProduct(name string, work func(p productDevice) error) uiworks.Work {
 	return uiworks.S(name, func() error {
-		return x.doEachProductDevice(x.sendMessage, work)
+		return x.doEachProductDevice(x.sendErrorMessage, work)
 	})
 }
 

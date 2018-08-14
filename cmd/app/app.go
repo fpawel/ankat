@@ -28,6 +28,7 @@ type comportState struct {
 }
 
 type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, text string)
+type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp() {
 
@@ -123,9 +124,12 @@ func runApp() {
 		wg.Done()
 	}()
 
-
 	fmt.Println("delphiApp started")
 	wg.Wait()
+}
+
+func (x *app) sendErrorMessage(productSerial ankat.ProductSerial, text string) {
+	x.sendMessage(productSerial, dataworks.Error, text)
 }
 
 func (x *app) sendMessage(productSerial ankat.ProductSerial, level dataworks.Level, text string) {

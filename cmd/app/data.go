@@ -112,7 +112,7 @@ func (x db) CurrentPartyValueStr(name string) (value string) {
 }
 
 func (x db) IsTwoConcentrationChannels() bool {
-	return x.CurrentPartyValue("sensors_count")  == 2
+	return x.CurrentPartyValue("sensors_count") == 2
 }
 
 func (x db) IsCO2() bool {
@@ -121,6 +121,11 @@ func (x db) IsCO2() bool {
 
 func (x db) CheckedVars() (vars []Var) {
 	dbMustSelect(x.dbProducts, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
+	return
+}
+
+func (x db) VarName(v ankat.Var) (s string) {
+	dbMustGet(x.dbProducts, &s, `SELECT COALESCE( ( SELECT name FROM read_var WHERE var=? ), '#' || ?);`, v, v)
 	return
 }
 

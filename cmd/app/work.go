@@ -30,7 +30,7 @@ func (x app) closeOpenedComports(logger logger) {
 	}
 }
 
-func (x app) comportProduct(p Product, logger logger) (*comport.Port, error) {
+func (x app) comportProduct(p Product, errorLogger errorLogger) (*comport.Port, error) {
 	a, existed := x.comports[p.Comport]
 	if !existed || a.err != nil {
 		portConfig := x.db.ComportSets("products")
@@ -39,7 +39,7 @@ func (x app) comportProduct(p Product, logger logger) (*comport.Port, error) {
 		a.err = a.comport.Open(x.uiWorks)
 		x.comports[p.Comport] = a
 		if a.err != nil {
-			logger(p.Serial, dataworks.Error, a.err.Error())
+			errorLogger(p.Serial, a.err.Error())
 			notifyProductConnected(p.Ordinal, x.delphiApp, a.err, p.Comport)
 		}
 	}
@@ -60,7 +60,7 @@ func (x app) comport(name string) (*comport.Port, error) {
 func (x app) sendCmd(cmd uint16, value float64) error {
 	x.uiWorks.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
 		x.db.formatCmd(cmd), value)
-	return x.doEachProductDevice(x.uiWorks.WriteLog, func(p productDevice) error {
+	return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
 		return nil
 	})
@@ -83,7 +83,7 @@ func (x app) runReadVarsWork() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
-				x.doProductDevice(p, x.sendMessage, func(p productDevice) error {
+				x.doProductDevice(p, x.sendErrorMessage, func(p productDevice) error {
 					vars := x.db.CheckedVars()
 					if len(vars) == 0 {
 						vars = x.db.Vars()[:2]
@@ -108,7 +108,7 @@ func (x app) runReadVarsWork() {
 func (x app) runReadCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Считывание коэффициентов", func() error {
-		return x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
+		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
 			xs := x.db.CheckedCoefficients()
 			if len(xs) == 0 {
 				xs = x.db.Coefficients()
@@ -127,7 +127,7 @@ func (x app) runReadCoefficientsWork() {
 func (x app) runWriteCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Запись коэффициентов", func() error {
-		return x.doEachProductDevice(x.sendMessage, func(p productDevice) error {
+		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
 			xs := x.db.CheckedCoefficients()
 			if len(xs) == 0 {
 				xs = x.db.Coefficients()
@@ -143,7 +143,19 @@ func (x app) runWriteCoefficientsWork() {
 	}))
 }
 
-func (x app) doEachProductDevice(errorLogger logger, w func(p productDevice) error) error {
+func (x app) doEachProductData(w func(p productData)) {
+
+	for _, p := range x.db.CheckedProducts() {
+		w(productData{
+			product:  p,
+			pipe:     x.delphiApp,
+			workCtrl: x.uiWorks,
+			db:       x.db,
+		})
+	}
+}
+
+func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice) error) error {
 	if len(x.db.CheckedProducts()) == 0 {
 		return errors.New("не выбраны приборы")
 	}
@@ -157,7 +169,7 @@ func (x app) doEachProductDevice(errorLogger logger, w func(p productDevice) err
 	return nil
 }
 
-func (x app) doProductDevice(p Product, errorLogger logger, w func(p productDevice) error) {
+func (x app) doProductDevice(p Product, errorLogger errorLogger, w func(p productDevice) error) {
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
 	}{p.Ordinal})
@@ -166,14 +178,16 @@ func (x app) doProductDevice(p Product, errorLogger logger, w func(p productDevi
 		return
 	}
 	err = w(productDevice{
-		product:  p,
-		pipe:     x.delphiApp,
-		workCtrl: x.uiWorks,
-		port:     port,
-		data:     x.db,
+		productData{
+			product:  p,
+			pipe:     x.delphiApp,
+			workCtrl: x.uiWorks,
+			db:       x.db,
+		},
+		port,
 	})
 	if err != nil {
-		errorLogger(p.Serial, dataworks.Error, err.Error())
+		errorLogger(p.Serial, err.Error())
 	}
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
@@ -187,15 +201,29 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 		vars = append(vars, ankat.MainVars2()...)
 	}
 	iV, iP := 0, 0
+
+	type ProductError struct {
+		Serial ankat.ProductSerial
+		Error  string
+	}
+
+	productErrors := map[ProductError]struct{}{}
+
 	return x.uiWorks.Delay(what, duration, func() error {
 		products := x.db.CheckedProducts()
 		if len(products) == 0 {
-			return errors.New("не отмечено ни одного прибора")
+			return errors.New(what + ": " + "не отмечено ни одного прибора")
 		}
 		if iP >= len(products) {
 			iP, iV = 0, 0
 		}
-		x.doProductDevice(products[iP], x.sendMessage, func(p productDevice) error {
+		x.doProductDevice(products[iP], func(productSerial ankat.ProductSerial, text string) {
+			k := ProductError{productSerial, text}
+			if _, exists := productErrors[k]; !exists {
+				x.uiWorks.WriteError(productSerial, what+": "+text)
+				productErrors[k] = struct{}{}
+			}
+		}, func(p productDevice) error {
 			value, err := p.readVar(vars[iV])
 			if err == nil {
 				dataproducts.AddChartValue(x.db.dbProducts, p.product.Serial, vars[iV], value)

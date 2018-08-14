@@ -253,6 +253,10 @@ func (x Runner) SubscribeInterrupted(ch chan struct{}, subscribe bool) {
 	}
 }
 
+func (x Runner) WriteError(productSerial ankat.ProductSerial, text string) {
+	x.WriteLog(productSerial, dataworks.Error, text)
+}
+
 func (x Runner) WriteLog(productSerial ankat.ProductSerial, level dataworks.Level, text string) {
 	x.chWriteLog <- dataworks.WriteRecord{
 		Level:         level,

@@ -5,7 +5,6 @@ import (
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
-	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/fetch"
 	"github.com/fpawel/guartutils/modbus"
@@ -18,11 +17,8 @@ import (
 )
 
 type productDevice struct {
-	port     *comport.Port
-	product  Product
-	pipe     *procmq.ProcessMQ
-	workCtrl uiworks.Runner
-	data     db
+	productData
+	port *comport.Port
 }
 
 type readProductResult struct {
@@ -53,11 +49,14 @@ func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err erro
 func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 	for _, pv := range vars {
 		value, err := x.readVar(pv.Var)
+
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.db.VarName(pv.Var), pv.Point)
+
 		if err != nil {
-			return errors.Wrapf(err, "сохранение: %s: РЕГ:%d ТОЧКА:%d", pv.Sect, pv.Var, pv.Point)
+			return errors.Wrapf(err, "сохранение: %s", s)
 		}
-		x.data.SetProductValue(x.product.Serial, pv, value)
-		x.writeInfof("сохранение: %s: РЕГ:%d ТОЧКА:%d = %v", pv.Sect, pv.Var, pv.Point, value)
+		x.db.SetProductValue(x.product.Serial, pv, value)
+		x.writeInfof("сохранение: %s = %v", s, value)
 	}
 	return nil
 }
@@ -76,12 +75,12 @@ func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value flo
 	if err == nil {
 		value, err = req.ParseBCDValue(bytes)
 		if err == nil {
-			x.data.SetCoefficientValue(x.product.Serial, coefficient, value)
+			x.db.SetCoefficientValue(x.product.Serial, coefficient, value)
 		}
 	}
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
 
-	for _, a := range x.data.Coefficients() {
+	for _, a := range x.db.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.pipe.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,
@@ -112,7 +111,7 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 		value, err = req.ParseBCDValue(bytes)
 	}
 	x.notifyConnected(err, "$%d=%v", v, value)
-	for _, a := range x.data.Vars() {
+	for _, a := range x.db.Vars() {
 		if a.Var == v {
 			x.pipe.Send("READ_VAR", readProductResult{
 				Var:     a.Ordinal,
@@ -125,6 +124,15 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 	}
 
 	return value, err
+}
+
+func (x productDevice) writeCoefficientsFrom(coefficient0 ankat.Coefficient, coefficients []float64) error {
+	for i, value := range coefficients {
+		if err := x.writeCoefficientValue(coefficient0+ankat.Coefficient(i), value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (x productDevice) writeInitCoefficients() error {
@@ -156,10 +164,10 @@ func (x productDevice) writeInitCoefficients() error {
 	}
 
 	val := func(name string) float64 {
-		return x.data.CurrentPartyValue(name)
+		return x.db.CurrentPartyValue(name)
 	}
 	str := func(name string) string {
-		return x.data.CurrentPartyValueStr(name)
+		return x.db.CurrentPartyValueStr(name)
 	}
 
 	xs := []cv{
@@ -189,7 +197,7 @@ func (x productDevice) writeInitCoefficients() error {
 		{47, 0},
 	}
 
-	if x.data.IsTwoConcentrationChannels() {
+	if x.db.IsTwoConcentrationChannels() {
 
 		xs2 := []cv{
 			{15, sensorCode(
@@ -261,15 +269,15 @@ func (x productDevice) sendCmd(cmd uint16, value float64) error {
 func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 	err := x.sendCmd(cmd, value)
 	if err == nil {
-		x.writeInfof("%s: %v", x.data.formatCmd(cmd), value)
+		x.writeInfof("%s: %v", x.db.formatCmd(cmd), value)
 	} else {
-		x.writeErrorf("%s: %v: %v", x.data.formatCmd(cmd), value, err)
+		x.writeErrorf("%s: %v: %v", x.db.formatCmd(cmd), value, err)
 	}
 	return err
 }
 
 func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
-	v, exists := x.data.CoefficientValue(x.product.Serial, coefficient)
+	v, exists := x.db.CoefficientValue(x.product.Serial, coefficient)
 	if !exists {
 		x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, fmt.Sprintf(
 			"запись К%d: значение коэффициента не задано", coefficient))
@@ -287,7 +295,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, v, err)
 	}
-	for _, a := range x.data.Coefficients() {
+	for _, a := range x.db.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.pipe.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,
@@ -310,12 +318,12 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	}
 	x.notifyConnected(err, "K%d:=%v", coefficient, value)
 	if err == nil {
-		dataproducts.SetCoefficientValue(x.data.dbProducts, x.product.Serial, coefficient, value)
+		dataproducts.SetCoefficientValue(x.db.dbProducts, x.product.Serial, coefficient, value)
 		x.writeInfof("K%d:=%v", coefficient, value)
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, value, err)
 	}
-	for _, a := range x.data.Coefficients() {
+	for _, a := range x.db.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.pipe.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,
@@ -327,22 +335,6 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 		}
 	}
 	return err
-}
-
-func (x productDevice) writeInfo(str string) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Info, str)
-}
-
-func (x productDevice) writeInfof(format string, a ...interface{}) {
-	x.writeInfo(fmt.Sprintf(format, a...))
-}
-
-func (x productDevice) writeError(str string) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Error, str)
-}
-
-func (x productDevice) writeErrorf(format string, a ...interface{}) {
-	x.writeError(fmt.Sprintf(format, a...))
 }
 
 func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNumber int) error {
