@@ -1,0 +1,33 @@
+{% import "github.com/fpawel/ankat/data/dataproducts" %}
+{% import "fmt" %}
+
+{% func Party(p dataproducts.PartyInfo) %}
+<html> 
+	<head> 
+        <title> Партия</title>
+        <style type="text/css"> 
+            table, th, td { 
+                border-collapse: collapse; 
+            }
+            th, td { 
+                font-size: 14px; 
+                padding: 5px 8px;
+            }
+            .col2 {
+                color: #000080; 
+                font-weight: bold; 
+            } 
+        </style> 
+    </head>
+    <body>
+    <h3> 
+        Параметры партии № {%d int(p.PartyID) %} от {%s fmt.Sprintf("%s", p.CreatedAt.Format("02 01 2006")) %} 
+    </h3>
+    
+    <table border="0" >
+        
+    </table>
+
+    </body>
+</html>
+{% endfunc %}
