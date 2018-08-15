@@ -190,3 +190,11 @@ func (x db) ConfigValue(name string) float64 {
 	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
 	return n
 }
+
+func (x db) PartyInfo(partyID ankat.PartyID) dataproducts.PartyInfo {
+	return dataproducts.GetPartyInfo(x.dbProducts, partyID)
+}
+
+func (x db) CurrentPartyInfo() dataproducts.PartyInfo {
+	return dataproducts.GetPartyInfo(x.dbProducts, x.CurrentPartyID())
+}

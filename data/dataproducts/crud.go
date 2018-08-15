@@ -7,56 +7,42 @@ import (
 	"time"
 )
 
-type Party struct {
-	PartyID     ankat.PartyID         `db:"party_id"`
-	CreatedAt   time.Time             `db:"created_at"`
-	ProductType string                `db:"product_type"`
-	Products    []ankat.ProductSerial `db:"-"`
+type PartyInfo struct {
+	PartyID   ankat.PartyID         `db:"party_id"`
+	CreatedAt time.Time             `db:"created_at"`
+	Products  []ankat.ProductSerial `db:"-"`
+	Values    map[string]string     `db:"-"`
 }
 
 type KeyValue struct {
 	Key, Value interface{}
 }
 
-//func EnsurePartyExists(x *sqlx.DB) {
-//	var exists bool
-//	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
-//	if exists {
-//		return
-//	}
-//	x.MustExec(`
-//INSERT INTO party(party_id)  VALUES(1);
-//INSERT INTO product(party_id, product_serial) VALUES (1,1), (1,2), (1,3), (1,4), (1,5);`)
-//
-//	var vars []string
-//	dbMustSelect(x, &vars, `SELECT var FROM party_var`)
-//
-//	const (
-//		sqlDefVal = `SELECT def_val FROM party_var WHERE var = ?`
-//		sqlSet    = `INSERT INTO party_value (party_id, var, value) VALUES (1, ?, ?);`
-//	)
-//	for _, aVar := range vars {
-//
-//		var strType string
-//		dbMustGet(x, &strType, `SELECT type FROM party_var WHERE var = ?`, aVar)
-//		switch strType {
-//		case "integer":
-//			var value int
-//			dbMustGet(x, &value, sqlDefVal, aVar)
-//			x.MustExec(sqlSet, aVar, value)
-//		case "text":
-//			var value string
-//			dbMustGet(x, &value, sqlDefVal, aVar)
-//			x.MustExec(sqlSet, aVar, value)
-//		case "real":
-//			var value float64
-//			dbMustGet(x, &value, sqlDefVal, aVar)
-//			x.MustExec(sqlSet, aVar, value)
-//		default:
-//			panic(strType)
-//		}
-//	}
-//}
+func GetPartyInfo(x *sqlx.DB, partyID ankat.PartyID) (party PartyInfo) {
+	dbMustGet(x, &party, `
+SELECT party_id, created_at FROM party WHERE party_id = $1;`, partyID)
+
+	dbMustSelect(x, &party.Products, `
+SELECT product_serial
+FROM product
+WHERE party_id = $1
+ORDER BY product_serial ASC;`, partyID)
+
+	var values []struct{
+		Var   string `db:"name"`
+		Value string `db:"value"`
+	}
+
+	dbMustSelect(x, &values,`SELECT name, value FROM party_value2 WHERE party_id = ?;`, partyID)
+	for i,v := range values{
+		if i == 0 {
+			party.Values = map[string]string{}
+		}
+		party.Values[v.Var] = v.Value
+	}
+
+	return
+}
 
 func SetCoefficientValue(x *sqlx.DB, productSerial ankat.ProductSerial, coefficient ankat.Coefficient, value float64) {
 	x.MustExec(`
@@ -103,7 +89,6 @@ WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
 //	}
 //	return
 //}
-
 
 func CurrentPartyValueStr(x *sqlx.DB, name string) (value string) {
 	dbMustGet(x, &value, `

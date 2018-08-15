@@ -94,17 +94,7 @@ func CurrentParty(x *sqlx.DB) (party Party) {
 	return
 }
 
-func GetParty(x *sqlx.DB, partyID PartyID) (party Party) {
-	err := x.Get(&party, `
-SELECT party_id, created_at, product_type
-FROM parties
-WHERE party_id = $1;`, partyID)
-	if err != nil {
-		panic(err)
-	}
-	party.Products = GetProducts(x, partyID)
-	return
-}
+
 
 func GetProducts(x *sqlx.DB, partyID PartyID) (products []int) {
 	err := x.Select(&products, `
@@ -275,4 +265,45 @@ type NewPartyConfig struct {
 	ProductsCount int
 	ProductType   string
 	KeysValues    KeysValues
+}
+
+
+func EnsurePartyExists(x *sqlx.DB) {
+	var exists bool
+	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
+	if exists {
+		return
+	}
+	x.MustExec(`
+INSERT INTO party(party_id)  VALUES(1);
+INSERT INTO product(party_id, product_serial) VALUES (1,1), (1,2), (1,3), (1,4), (1,5);`)
+
+	var vars []string
+	dbMustSelect(x, &vars, `SELECT var FROM party_var`)
+
+	const (
+		sqlDefVal = `SELECT def_val FROM party_var WHERE var = ?`
+		sqlSet    = `INSERT INTO party_value (party_id, var, value) VALUES (1, ?, ?);`
+	)
+	for _, aVar := range vars {
+
+		var strType string
+		dbMustGet(x, &strType, `SELECT type FROM party_var WHERE var = ?`, aVar)
+		switch strType {
+		case "integer":
+			var value int
+			dbMustGet(x, &value, sqlDefVal, aVar)
+			x.MustExec(sqlSet, aVar, value)
+		case "text":
+			var value string
+			dbMustGet(x, &value, sqlDefVal, aVar)
+			x.MustExec(sqlSet, aVar, value)
+		case "real":
+			var value float64
+			dbMustGet(x, &value, sqlDefVal, aVar)
+			x.MustExec(sqlSet, aVar, value)
+		default:
+			panic(strType)
+		}
+	}
 }

@@ -261,8 +261,6 @@ func (x app) blowGas(n ankat.GasCode) error {
 		return errors.Wrap(err, "не удалось переключить клапан")
 	}
 	duration := x.db.ConfigDuration(param) * time.Minute
-	x.uiWorks.WriteLogf(0, dataworks.Info,
-		"%s: в настройках задана длительность %v", what, duration)
 	return x.doDelayWithReadProducts(what, duration)
 }
 

@@ -70,16 +70,19 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 		chCurrentRunTask:         make(chan chan *Task),
 	}
 
-	processMQ.Handle("CURRENT_WORK_START", func(bytes []byte) {
+	processMQ.Handle("CURRENT_WORK_START", func(bytes []byte) interface {}{
 		var payload notifyWork
 		mustUnmarshalJson(bytes, &payload)
 		x.chStartMainTask <- payload
+		return nil
 	})
-	processMQ.Handle("CURRENT_WORK_STOP", func([]byte) {
+	processMQ.Handle("CURRENT_WORK_STOP", func([]byte) interface {}{
 		x.chInterrupt <- struct{}{}
+		return nil
 	})
-	processMQ.Handle("SKIP_DELAY", func([]byte) {
+	processMQ.Handle("SKIP_DELAY", func([]byte) interface {}{
 		x.chDelaySkipped <- struct{}{}
+		return nil
 	})
 
 	return x
@@ -280,7 +283,8 @@ func (x Runner) Delay(name string, duration time.Duration, backgroundWork func()
 	defer func() {
 		x.chDelay <- delayInfo{}
 	}()
-	x.WriteLog(0, dataworks.Debug, fmt.Sprintf("Задержка %v", duration))
+	x.WriteLogf(0, dataworks.Info, "%s %v", name, duration)
+	startTime := time.Now()
 
 	for {
 		if x.Interrupted() {
@@ -291,7 +295,7 @@ func (x Runner) Delay(name string, duration time.Duration, backgroundWork func()
 		case <-timer.C:
 			return nil
 		case <-x.chDelaySkipped:
-			x.WriteLog(0, dataworks.Warning, "задержка прервана")
+			x.WriteLogf(0, dataworks.Warning, "%s: %v: прервано пользователем %v: ", name, duration, time.Since(startTime))
 			return nil
 		default:
 			if backgroundWork != nil {

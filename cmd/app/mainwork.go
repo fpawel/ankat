@@ -88,21 +88,21 @@ func (x app) mainWork() uiworks.Work {
 		}),
 
 		uiworks.S("Калибровка чувствительности", func() error {
-			if err := x.blowGas(ankat.GasChan1Middle1); err != nil {
+			if err := x.blowGas(ankat.GasChan1End); err != nil {
 				return errors.Wrap(err,
-					"не удалось продуть середину шкалы канала 1")
+					"не удалось продуть конец шкалы канала 1")
 			}
-			concentration := x.db.CurrentPartyValue("c_gas2ch1")
+			concentration := x.db.CurrentPartyValue(ankat.GasChan1End.Var())
 			if err := x.sendCmd(2, concentration); err != nil {
 				return errors.Wrap(err,
 					"не удалось выполнить команду калибровки чувствительности канала 1")
 			}
 			if x.db.IsTwoConcentrationChannels() {
-				if err := x.blowGas(ankat.GasChan2Middle); err != nil {
+				if err := x.blowGas(ankat.GasChan2End); err != nil {
 					return errors.Wrap(err,
-						"не удалось продуть середину шкалы канала 2")
+						"не удалось продуть конец шкалы канала 2")
 				}
-				concentration = x.db.CurrentPartyValue("c_gas2ch2")
+				concentration = x.db.CurrentPartyValue(ankat.GasChan2End.Var())
 				if err := x.sendCmd(5, concentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки чувствительности канала 2")

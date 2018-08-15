@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/fpawel/ankat/cmd/app/templates"
 )
 
 type app struct {
@@ -45,7 +46,7 @@ func runApp() {
 
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
-	x.delphiApp.Handle("CURRENT_WORK_CHECKED_CHANGED", func(bytes []byte) {
+	x.delphiApp.Handle("CURRENT_WORK_CHECKED_CHANGED", func(bytes []byte) interface{}{
 		var v struct {
 			Ordinal    int
 			CheckState string
@@ -53,28 +54,33 @@ func runApp() {
 		mustUnmarshalJson(bytes, &v)
 		x.db.dbConfig.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
 			v.Ordinal, v.CheckState)
+		return nil
 	})
 
-	x.delphiApp.Handle("RUN_MAIN_WORK", func(b []byte) {
+	x.delphiApp.Handle("RUN_MAIN_WORK", func(b []byte) interface {}{
 		n, err := strconv.ParseInt(string(b), 10, 64)
 		if err != nil {
 			panic(err)
 		}
 		x.runWork(int(n), x.mainWork())
+		return nil
 	})
 
-	x.delphiApp.Handle("READ_VARS", func([]byte) {
+	x.delphiApp.Handle("READ_VARS", func([]byte) interface {} {
 		x.runReadVarsWork()
+		return nil
 	})
-	x.delphiApp.Handle("READ_COEFFICIENTS", func([]byte) {
+	x.delphiApp.Handle("READ_COEFFICIENTS", func([]byte) interface {}{
 		x.runReadCoefficientsWork()
+		return nil
 	})
 
-	x.delphiApp.Handle("WRITE_COEFFICIENTS", func([]byte) {
+	x.delphiApp.Handle("WRITE_COEFFICIENTS", func([]byte) interface {}{
 		x.runWriteCoefficientsWork()
+		return nil
 	})
 
-	x.delphiApp.Handle("MODBUS_CMD", func(b []byte) {
+	x.delphiApp.Handle("MODBUS_CMD", func(b []byte) interface {}{
 		var a struct {
 			Cmd uint16
 			Arg float64
@@ -83,9 +89,10 @@ func runApp() {
 		x.runWork(0, uiworks.S("Отправка команды", func() error {
 			return x.sendCmd(a.Cmd, a.Arg)
 		}))
+		return nil
 	})
 
-	x.delphiApp.Handle("SEND_SET_WORK_MODE", func(b []byte) {
+	x.delphiApp.Handle("SEND_SET_WORK_MODE", func(b []byte) interface {} {
 		s := string(b)
 		s = strings.Replace(s, ",", ".", -1)
 		mode, err := strconv.ParseFloat(s, 64)
@@ -96,10 +103,11 @@ func runApp() {
 		} else {
 			x.runWork(0, x.workSendSetWorkMode(mode))
 		}
+		return nil
 	})
 
-	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) {
-		x.delphiApp.Send("SETUP_CURRENT_WORKS", x.mainWork().Task().Info(x.db.dbProducts))
+	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) interface {} {
+		return x.mainWork().Task().Info(x.db.dbProducts)
 	})
 
 	fmt.Println("delphiApp connecting...")
@@ -107,6 +115,10 @@ func runApp() {
 		panic(err)
 	}
 	fmt.Println("delphiApp connected")
+
+
+	fmt.Println(templates.Party( x.db.CurrentPartyInfo() ))
+
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 
