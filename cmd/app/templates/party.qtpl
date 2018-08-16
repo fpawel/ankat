@@ -50,11 +50,13 @@
         <thead>
             <th>№</th>
             {% for product := range p.Coefficients.Products() %}
-
+                <th>{%d product %}</th>
+            {% endfor %}
         </thead>
         <tbody>
             {% for coefficient := range p.Coefficients %}       
                 <tr>
+                    <th>{%s fmt.Sprintf("%2d", coefficient) %}</th>
                     
                 {% if i % 3 == 0 %}
                     <tr>
