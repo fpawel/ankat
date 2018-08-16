@@ -27,115 +27,107 @@ var (
 func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo) {
 	//line party.qtpl:4
 	qw422016.N().S(`
-<html> 
-	<head> 
-        <title> Партия</title>
-        <style type="text/css"> 
-            table{
-                border:0px;
-            }
-            table, th, td { 
-                border-collapse: collapse; 
-            }
-            th, td { 
-                font-size: 14px; 
-                padding: 5px 8px;
-            }
-            .col2 {
-                color: #000080; 
-                font-weight: bold; 
-            } 
-        </style> 
-    </head>
-    <body>
-    <h3> 
-        Параметры партии №`)
-	//line party.qtpl:27
-	qw422016.N().D(int(p.PartyID))
-	//line party.qtpl:27
-	qw422016.N().S(` от `)
-	//line party.qtpl:27
-	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")))
-	//line party.qtpl:27
-	qw422016.N().S(` 
-    </h3>
-    
-    <table>
-        <tbody>
-            `)
-	//line party.qtpl:32
-	for i := range p.Values {
-		//line party.qtpl:32
-		qw422016.N().S(`                
-                `)
-		//line party.qtpl:33
-		if i%3 == 0 {
-			//line party.qtpl:33
-			qw422016.N().S(`
-                    <tr>
-                    `)
-			//line party.qtpl:35
-			for n := 0; n < 3 && i+n < len(p.Values); n++ {
-				//line party.qtpl:35
-				qw422016.N().S(`
-                        <td align="right">`)
-				//line party.qtpl:36
-				qw422016.E().S(p.Values[i+n].Key)
-				//line party.qtpl:36
-				qw422016.N().S(`</td>
-                        <td align="left" class="col2">`)
-				//line party.qtpl:37
-				qw422016.E().S(p.Values[i+n].Value)
-				//line party.qtpl:37
-				qw422016.N().S(`</td>
-                    `)
-				//line party.qtpl:38
-			}
-			//line party.qtpl:38
-			qw422016.N().S(`                    
-                    </tr>
-                `)
-			//line party.qtpl:40
-		}
-		//line party.qtpl:40
-		qw422016.N().S(`                
-	        `)
-		//line party.qtpl:41
-	}
-	//line party.qtpl:41
-	qw422016.N().S(`
-        </tbody>
-        
-    </table>
-
-    </body>
-</html>
 `)
-//line party.qtpl:48
+	//line party.qtpl:5
+	qw422016.N().S(`<html><head><title> Партия</title><style type="text/css">table{border:0px;}table, th, td {border-collapse: collapse;}th, td {font-size: 14px;padding: 5px 8px;}.col2 {color: #000080;font-weight: bold;text-align:left;}.col1 {text-align:right;}</style></head><body><h3>Параметры партии №`)
+	//line party.qtpl:32
+	qw422016.N().D(int(p.PartyID))
+	//line party.qtpl:32
+	qw422016.N().S(`от`)
+	//line party.qtpl:32
+	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")))
+	//line party.qtpl:32
+	qw422016.N().S(`</h3><table><tbody>`)
+	//line party.qtpl:37
+	for i := range p.Values {
+		//line party.qtpl:38
+		if i%3 == 0 {
+			//line party.qtpl:38
+			qw422016.N().S(`<tr>`)
+			//line party.qtpl:40
+			for n := 0; n < 3 && i+n < len(p.Values); n++ {
+				//line party.qtpl:40
+				qw422016.N().S(`<td class="col1">`)
+				//line party.qtpl:41
+				qw422016.E().S(p.Values[i+n].Key)
+				//line party.qtpl:41
+				qw422016.N().S(`</td><td class="col2">`)
+				//line party.qtpl:42
+				qw422016.E().S(p.Values[i+n].Value)
+				//line party.qtpl:42
+				qw422016.N().S(`</td>`)
+				//line party.qtpl:43
+			}
+			//line party.qtpl:43
+			qw422016.N().S(`</tr>`)
+			//line party.qtpl:45
+		}
+		//line party.qtpl:46
+	}
+	//line party.qtpl:46
+	qw422016.N().S(`</tbody></table><h3>Коэффициенты</h3><table><thead><th>№</th>`)
+	//line party.qtpl:56
+	for product := range p.Coefficients.Products() {
+		//line party.qtpl:56
+		qw422016.N().S(`<th>`)
+		//line party.qtpl:57
+		qw422016.N().D(product)
+		//line party.qtpl:57
+		qw422016.N().S(`</th>`)
+		//line party.qtpl:58
+	}
+	//line party.qtpl:58
+	qw422016.N().S(`</thead><tbody>`)
+	//line party.qtpl:61
+	for coefficient, cs := range p.Coefficients {
+		//line party.qtpl:61
+		qw422016.N().S(`<tr><th>`)
+		//line party.qtpl:63
+		qw422016.E().S(fmt.Sprintf("%2d", coefficient))
+		//line party.qtpl:63
+		qw422016.N().S(`</th>`)
+		//line party.qtpl:64
+		for _, product := range p.Coefficients.Products() {
+			//line party.qtpl:64
+			qw422016.N().S(`<td>`)
+			//line party.qtpl:65
+			qw422016.E().V(cs[product])
+			//line party.qtpl:65
+			qw422016.N().S(`</td>`)
+			//line party.qtpl:66
+		}
+		//line party.qtpl:67
+	}
+	//line party.qtpl:67
+	qw422016.N().S(`</tbody></table></body></html>`)
+	//line party.qtpl:76
+	qw422016.N().S(`
+`)
+//line party.qtpl:77
 }
 
-//line party.qtpl:48
+//line party.qtpl:77
 func WriteParty(qq422016 qtio422016.Writer, p dataproducts.PartyInfo) {
-	//line party.qtpl:48
+	//line party.qtpl:77
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line party.qtpl:48
+	//line party.qtpl:77
 	StreamParty(qw422016, p)
-	//line party.qtpl:48
+	//line party.qtpl:77
 	qt422016.ReleaseWriter(qw422016)
-//line party.qtpl:48
+//line party.qtpl:77
 }
 
-//line party.qtpl:48
+//line party.qtpl:77
 func Party(p dataproducts.PartyInfo) string {
-	//line party.qtpl:48
+	//line party.qtpl:77
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line party.qtpl:48
+	//line party.qtpl:77
 	WriteParty(qb422016, p)
-	//line party.qtpl:48
+	//line party.qtpl:77
 	qs422016 := string(qb422016.B)
-	//line party.qtpl:48
+	//line party.qtpl:77
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line party.qtpl:48
+	//line party.qtpl:77
 	return qs422016
-//line party.qtpl:48
+//line party.qtpl:77
 }

@@ -20,6 +20,10 @@
             .col2 {
                 color: #000080; 
                 font-weight: bold; 
+                text-align:left;
+            } 
+            .col1 {
+                text-align:right;
             } 
         </style> 
     </head>
@@ -34,8 +38,8 @@
                 {% if i % 3 == 0 %}
                     <tr>
                     {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
-                        <td align="right">{%s p.Values[i+n].Key %}</td>
-                        <td align="left" class="col2">{%s p.Values[i+n].Value %}</td>
+                        <td class="col1">{%s p.Values[i+n].Key %}</td>
+                        <td class="col2">{%s p.Values[i+n].Value %}</td>
                     {% endfor %}                    
                     </tr>
                 {% endif %}                
@@ -54,18 +58,13 @@
             {% endfor %}
         </thead>
         <tbody>
-            {% for coefficient := range p.Coefficients %}       
+            {% for coefficient, cs := range p.Coefficients %}       
                 <tr>
-                    <th>{%s fmt.Sprintf("%2d", coefficient) %}</th>
-                    
-                {% if i % 3 == 0 %}
-                    <tr>
-                    {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
-                        <td align="right">{%s p.Values[i+n].Key %}</td>
-                        <td align="left" class="col2">{%s p.Values[i+n].Value %}</td>
-                    {% endfor %}                    
-                    </tr>
-                {% endif %}                
+                    <th>{%s fmt.Sprintf("%2d", coefficient) %}</th>                        
+                    {% for _,product := range p.Coefficients.Products() %}
+                        <td>{%v cs[product] %}</td>
+                    {% endfor %} 
+                </tr>
 	        {% endfor %}
         </tbody>
         
