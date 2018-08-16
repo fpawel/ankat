@@ -31,6 +31,9 @@ func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo) {
 	<head> 
         <title> Партия</title>
         <style type="text/css"> 
+            table{
+                border:0px;
+            }
             table, th, td { 
                 border-collapse: collapse; 
             }
@@ -46,44 +49,93 @@ func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo) {
     </head>
     <body>
     <h3> 
-        Параметры партии № `)
-	//line party.qtpl:24
+        Параметры партии №`)
+	//line party.qtpl:27
 	qw422016.N().D(int(p.PartyID))
-	//line party.qtpl:24
+	//line party.qtpl:27
 	qw422016.N().S(` от `)
-	//line party.qtpl:24
-	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02 01 2006")))
-	//line party.qtpl:24
+	//line party.qtpl:27
+	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")))
+	//line party.qtpl:27
 	qw422016.N().S(` 
     </h3>
+    
+    <table>
+        <tbody>
+            `)
+	//line party.qtpl:32
+	for i := range p.Values {
+		//line party.qtpl:32
+		qw422016.N().S(`                
+                `)
+		//line party.qtpl:33
+		if i%3 == 0 {
+			//line party.qtpl:33
+			qw422016.N().S(`
+                    <tr>
+                    `)
+			//line party.qtpl:35
+			for n := 0; n < 3 && i+n < len(p.Values); n++ {
+				//line party.qtpl:35
+				qw422016.N().S(`
+                        <td align="right">`)
+				//line party.qtpl:36
+				qw422016.E().S(p.Values[i+n].Key)
+				//line party.qtpl:36
+				qw422016.N().S(`</td>
+                        <td align="left" class="col2">`)
+				//line party.qtpl:37
+				qw422016.E().S(p.Values[i+n].Value)
+				//line party.qtpl:37
+				qw422016.N().S(`</td>
+                    `)
+				//line party.qtpl:38
+			}
+			//line party.qtpl:38
+			qw422016.N().S(`                    
+                    </tr>
+                `)
+			//line party.qtpl:40
+		}
+		//line party.qtpl:40
+		qw422016.N().S(`                
+	        `)
+		//line party.qtpl:41
+	}
+	//line party.qtpl:41
+	qw422016.N().S(`
+        </tbody>
+        
+    </table>
+
     </body>
 </html>
 `)
-//line party.qtpl:28
+//line party.qtpl:48
 }
 
-//line party.qtpl:28
+//line party.qtpl:48
 func WriteParty(qq422016 qtio422016.Writer, p dataproducts.PartyInfo) {
-	//line party.qtpl:28
+	//line party.qtpl:48
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line party.qtpl:28
+	//line party.qtpl:48
 	StreamParty(qw422016, p)
-	//line party.qtpl:28
+	//line party.qtpl:48
 	qt422016.ReleaseWriter(qw422016)
-//line party.qtpl:28
+//line party.qtpl:48
 }
 
-//line party.qtpl:28
+//line party.qtpl:48
 func Party(p dataproducts.PartyInfo) string {
-	//line party.qtpl:28
+	//line party.qtpl:48
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line party.qtpl:28
+	//line party.qtpl:48
 	WriteParty(qb422016, p)
-	//line party.qtpl:28
+	//line party.qtpl:48
 	qs422016 := string(qb422016.B)
-	//line party.qtpl:28
+	//line party.qtpl:48
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line party.qtpl:28
+	//line party.qtpl:48
 	return qs422016
-//line party.qtpl:28
+//line party.qtpl:48
 }

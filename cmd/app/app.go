@@ -110,14 +110,18 @@ func runApp() {
 		return x.mainWork().Task().Info(x.db.dbProducts)
 	})
 
+	x.delphiApp.Handle("PARTY_INFO", func(bytes []byte) interface {} {
+		partyID := ankat.PartyID(mustParseInt64(bytes))
+		str := templates.Party( x.db.PartyInfo(partyID) )
+
+		return str
+	})
+
 	fmt.Println("delphiApp connecting...")
 	if err := x.delphiApp.Connect(); err != nil {
 		panic(err)
 	}
 	fmt.Println("delphiApp connected")
-
-
-	fmt.Println(templates.Party( x.db.CurrentPartyInfo() ))
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)

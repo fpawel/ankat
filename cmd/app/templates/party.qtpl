@@ -2,10 +2,14 @@
 {% import "fmt" %}
 
 {% func Party(p dataproducts.PartyInfo) %}
+{% stripspace %}
 <html> 
 	<head> 
         <title> Партия</title>
         <style type="text/css"> 
+            table{
+                border:0px;
+            }
             table, th, td { 
                 border-collapse: collapse; 
             }
@@ -21,13 +25,53 @@
     </head>
     <body>
     <h3> 
-        Параметры партии № {%d int(p.PartyID) %} от {%s fmt.Sprintf("%s", p.CreatedAt.Format("02 01 2006")) %} 
+        Параметры партии №{%d int(p.PartyID) %} от {%s fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")) %} 
     </h3>
     
-    <table border="0" >
+    <table>
+        <tbody>
+            {% for i := range p.Values %}                
+                {% if i % 3 == 0 %}
+                    <tr>
+                    {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
+                        <td align="right">{%s p.Values[i+n].Key %}</td>
+                        <td align="left" class="col2">{%s p.Values[i+n].Value %}</td>
+                    {% endfor %}                    
+                    </tr>
+                {% endif %}                
+	        {% endfor %}
+        </tbody>
         
     </table>
 
+    <h3>Коэффициенты</h3>
+
+    <table>
+        <thead>
+            <th>№</th>
+            {% for product := range p.Coefficients.Products() %}
+
+        </thead>
+        <tbody>
+            {% for coefficient := range p.Coefficients %}       
+                <tr>
+                    
+                {% if i % 3 == 0 %}
+                    <tr>
+                    {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
+                        <td align="right">{%s p.Values[i+n].Key %}</td>
+                        <td align="left" class="col2">{%s p.Values[i+n].Value %}</td>
+                    {% endfor %}                    
+                    </tr>
+                {% endif %}                
+	        {% endfor %}
+        </tbody>
+        
+    </table>
+
+    
+
     </body>
 </html>
+{% endstripspace %}
 {% endfunc %}

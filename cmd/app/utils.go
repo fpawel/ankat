@@ -4,6 +4,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"encoding/json"
 	"github.com/fpawel/ankat"
+	"strconv"
 )
 
 func dbMustGet(db *sqlx.DB,  dest interface{}, query string, args ...interface{} ) {
@@ -35,14 +36,16 @@ func dbMustOpen(fileName, query string) (db *sqlx.DB) {
 }
 
 
-
-
-func doNothing() error {
-	return nil
-}
-
 func mustUnmarshalJson(b []byte, v interface{}) {
 	if err := json.Unmarshal(b, v); err != nil {
 		panic(err.Error() + ": " + string(b))
 	}
+}
+
+func mustParseInt64(b []byte) int64 {
+	v,err := strconv.ParseInt(string(b), 10, 64)
+	if err != nil {
+		panic(err.Error() + ": " + string(b))
+	}
+	return v
 }
