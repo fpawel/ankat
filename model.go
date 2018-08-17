@@ -22,6 +22,11 @@ type ProductVar struct {
 	Point Point
 }
 
+type SectPoint struct{
+	Sect
+	Point
+}
+
 const (
 	GasClose GasCode = iota
 	GasNitrogen
@@ -75,10 +80,21 @@ func GasCodeDescription(gasCode GasCode) string {
 	panic(fmt.Sprintf("unknown gas code: %d", gasCode))
 }
 
+func SectPointDescription(sect Sect, point Point) string {
+	if s, ok := pointSectDescription[SectPoint{sect, point}]; ok {
+		return s
+	}
+	return fmt.Sprintf("№%d", point+1)
+}
+
+
 var varSects = map[Sect]string{
 	Lin1: "линеаризация к.1",
 	Lin2: "линеаризация к.2",
 }
+
+
+
 
 var gases = map[GasCode]string{
 	GasNitrogen:     "ПГС1 азот",
@@ -87,6 +103,20 @@ var gases = map[GasCode]string{
 	GasChan1End:     "ПГС4 шкала к.1",
 	GasChan2Middle:  "ПГС5 середина к.2",
 	GasChan2End:     "ПГС6 шкала к.2",
+}
+
+var pointSectDescription = map[struct{
+	Sect
+	Point
+}]string{
+	{Lin1, 0}: gases[GasNitrogen],
+	{Lin1, 1}: gases[GasChan1Middle1],
+	{Lin1, 2}: gases[GasChan1Middle2],
+	{Lin1, 3}: gases[GasChan1End],
+
+	{Lin2, 0}: gases[GasNitrogen],
+	{Lin2, 1}: gases[GasChan2Middle],
+	{Lin2, 2}: gases[GasChan2End],
 }
 
 func MainVars1() []Var {

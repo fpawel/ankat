@@ -1,17 +1,15 @@
 {% import "github.com/fpawel/ankat/data/dataproducts" %}
+{% import "github.com/fpawel/ankat" %}
 {% import "fmt" %}
 
-{% func Party(p dataproducts.PartyInfo) %}
-{% stripspace %}
+{% func Party(p dataproducts.PartyInfo, funcVarName func(ankat.Var) string ) %}
 <html> 
 	<head> 
         <title> Партия</title>
         <style type="text/css"> 
-            table{
-                border:0px;
-            }
             table, th, td { 
                 border-collapse: collapse; 
+                border:0px;
             }
             th, td { 
                 font-size: 14px; 
@@ -24,7 +22,11 @@
             } 
             .col1 {
                 text-align:right;
-            } 
+            }
+
+            table.tab2, table.tab2 th, table.tab2 td {
+                border: 1px solid black;
+            }
         </style> 
     </head>
     <body>
@@ -39,7 +41,7 @@
                     <tr>
                     {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
                         <td class="col1">{%s p.Values[i+n].Key %}</td>
-                        <td class="col2">{%s p.Values[i+n].Value %}</td>
+                        <td class="col2">{%s p.Values[i+n].Str %}</td>
                     {% endfor %}                    
                     </tr>
                 {% endif %}                
@@ -50,19 +52,19 @@
 
     <h3>Коэффициенты</h3>
 
-    <table>
+    <table class="tab2">
         <thead>
             <th>№</th>
-            {% for product := range p.Coefficients.Products() %}
-                <th>{%d product %}</th>
+            {% for _,product := range p.Coefficients.Products() %}
+                <th>{%d int(product) %}</th>
             {% endfor %}
         </thead>
         <tbody>
-            {% for coefficient, cs := range p.Coefficients %}       
+            {% for _,coefficient := range p.Coefficients.Coefficients() %}       
                 <tr>
-                    <th>{%s fmt.Sprintf("%2d", coefficient) %}</th>                        
+                    <th>{%s fmt.Sprintf("%02d", coefficient) %}</th>                        
                     {% for _,product := range p.Coefficients.Products() %}
-                        <td>{%v cs[product] %}</td>
+                        <td>{%v p.Coefficients[coefficient][product] %}</td>
                     {% endfor %} 
                 </tr>
 	        {% endfor %}
@@ -70,9 +72,40 @@
         
     </table>
 
-    
+    {% for _,sect := range p.ProductVarValues.Sects() %}    
+        <h3>{%s ankat.SectDescription(sect) %}</h3>
+        <table class="tab2"> 
+            <thead>
+                <tr>
+                    <th colspan = "2">Точка</th> 
+                    {% for _,product := range p.ProductVarValues.Products() %}
+                        <th>{%v product  %}</th>
+                    {% endfor %} 
+                </tr>
+            </thead>           
+            <tbody>
+                {% for _,v := range p.ProductVarValues.Vars() %}
+                    {% for _,pt := range p.ProductVarValues.Points() %}
+
+                        {% if xs,ok := p.ProductVarValues.SectVarPointValues(sect, v, pt); ok %}
+			                <tr>
+                                <th style="text-align:left;" >{%s ankat.SectPointDescription(sect,pt) %}</th> 
+                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)) %}</th>
+                                {% for _,product := range p.ProductVarValues.Products() %}
+                                    <td style="text-align:left;">
+                                        {% if value,ok := xs[product]; ok %}
+                                            {%f value %}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %} 
+                            </tr>
+			            {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>        
+    {% endfor %}   
 
     </body>
 </html>
-{% endstripspace %}
 {% endfunc %}

@@ -8,126 +8,311 @@ package templates
 import "github.com/fpawel/ankat/data/dataproducts"
 
 //line party.qtpl:2
+import "github.com/fpawel/ankat"
+
+//line party.qtpl:3
 import "fmt"
 
-//line party.qtpl:4
+//line party.qtpl:5
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line party.qtpl:4
+//line party.qtpl:5
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line party.qtpl:4
-func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo) {
-	//line party.qtpl:4
-	qw422016.N().S(`
-`)
+//line party.qtpl:5
+func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo, funcVarName func(ankat.Var) string) {
 	//line party.qtpl:5
-	qw422016.N().S(`<html><head><title> Партия</title><style type="text/css">table{border:0px;}table, th, td {border-collapse: collapse;}th, td {font-size: 14px;padding: 5px 8px;}.col2 {color: #000080;font-weight: bold;text-align:left;}.col1 {text-align:right;}</style></head><body><h3>Параметры партии №`)
-	//line party.qtpl:32
-	qw422016.N().D(int(p.PartyID))
-	//line party.qtpl:32
-	qw422016.N().S(`от`)
-	//line party.qtpl:32
-	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")))
-	//line party.qtpl:32
-	qw422016.N().S(`</h3><table><tbody>`)
-	//line party.qtpl:37
-	for i := range p.Values {
-		//line party.qtpl:38
-		if i%3 == 0 {
-			//line party.qtpl:38
-			qw422016.N().S(`<tr>`)
-			//line party.qtpl:40
-			for n := 0; n < 3 && i+n < len(p.Values); n++ {
-				//line party.qtpl:40
-				qw422016.N().S(`<td class="col1">`)
-				//line party.qtpl:41
-				qw422016.E().S(p.Values[i+n].Key)
-				//line party.qtpl:41
-				qw422016.N().S(`</td><td class="col2">`)
-				//line party.qtpl:42
-				qw422016.E().S(p.Values[i+n].Value)
-				//line party.qtpl:42
-				qw422016.N().S(`</td>`)
-				//line party.qtpl:43
-			}
-			//line party.qtpl:43
-			qw422016.N().S(`</tr>`)
-			//line party.qtpl:45
-		}
-		//line party.qtpl:46
-	}
-	//line party.qtpl:46
-	qw422016.N().S(`</tbody></table><h3>Коэффициенты</h3><table><thead><th>№</th>`)
-	//line party.qtpl:56
-	for product := range p.Coefficients.Products() {
-		//line party.qtpl:56
-		qw422016.N().S(`<th>`)
-		//line party.qtpl:57
-		qw422016.N().D(product)
-		//line party.qtpl:57
-		qw422016.N().S(`</th>`)
-		//line party.qtpl:58
-	}
-	//line party.qtpl:58
-	qw422016.N().S(`</thead><tbody>`)
-	//line party.qtpl:61
-	for coefficient, cs := range p.Coefficients {
-		//line party.qtpl:61
-		qw422016.N().S(`<tr><th>`)
-		//line party.qtpl:63
-		qw422016.E().S(fmt.Sprintf("%2d", coefficient))
-		//line party.qtpl:63
-		qw422016.N().S(`</th>`)
-		//line party.qtpl:64
-		for _, product := range p.Coefficients.Products() {
-			//line party.qtpl:64
-			qw422016.N().S(`<td>`)
-			//line party.qtpl:65
-			qw422016.E().V(cs[product])
-			//line party.qtpl:65
-			qw422016.N().S(`</td>`)
-			//line party.qtpl:66
-		}
-		//line party.qtpl:67
-	}
-	//line party.qtpl:67
-	qw422016.N().S(`</tbody></table></body></html>`)
-	//line party.qtpl:76
 	qw422016.N().S(`
+<html> 
+	<head> 
+        <title> Партия</title>
+        <style type="text/css"> 
+            table, th, td { 
+                border-collapse: collapse; 
+                border:0px;
+            }
+            th, td { 
+                font-size: 14px; 
+                padding: 5px 8px;
+            }
+            .col2 {
+                color: #000080; 
+                font-weight: bold; 
+                text-align:left;
+            } 
+            .col1 {
+                text-align:right;
+            }
+
+            table.tab2, table.tab2 th, table.tab2 td {
+                border: 1px solid black;
+            }
+        </style> 
+    </head>
+    <body>
+    <h3> 
+        Параметры партии №`)
+	//line party.qtpl:34
+	qw422016.N().D(int(p.PartyID))
+	//line party.qtpl:34
+	qw422016.N().S(` от `)
+	//line party.qtpl:34
+	qw422016.E().S(fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")))
+	//line party.qtpl:34
+	qw422016.N().S(` 
+    </h3>
+    
+    <table>
+        <tbody>
+            `)
+	//line party.qtpl:39
+	for i := range p.Values {
+		//line party.qtpl:39
+		qw422016.N().S(`                
+                `)
+		//line party.qtpl:40
+		if i%3 == 0 {
+			//line party.qtpl:40
+			qw422016.N().S(`
+                    <tr>
+                    `)
+			//line party.qtpl:42
+			for n := 0; n < 3 && i+n < len(p.Values); n++ {
+				//line party.qtpl:42
+				qw422016.N().S(`
+                        <td class="col1">`)
+				//line party.qtpl:43
+				qw422016.E().S(p.Values[i+n].Key)
+				//line party.qtpl:43
+				qw422016.N().S(`</td>
+                        <td class="col2">`)
+				//line party.qtpl:44
+				qw422016.E().S(p.Values[i+n].Str)
+				//line party.qtpl:44
+				qw422016.N().S(`</td>
+                    `)
+				//line party.qtpl:45
+			}
+			//line party.qtpl:45
+			qw422016.N().S(`                    
+                    </tr>
+                `)
+			//line party.qtpl:47
+		}
+		//line party.qtpl:47
+		qw422016.N().S(`                
+	        `)
+		//line party.qtpl:48
+	}
+	//line party.qtpl:48
+	qw422016.N().S(`
+        </tbody>
+        
+    </table>
+
+    <h3>Коэффициенты</h3>
+
+    <table class="tab2">
+        <thead>
+            <th>№</th>
+            `)
+	//line party.qtpl:58
+	for _, product := range p.Coefficients.Products() {
+		//line party.qtpl:58
+		qw422016.N().S(`
+                <th>`)
+		//line party.qtpl:59
+		qw422016.N().D(int(product))
+		//line party.qtpl:59
+		qw422016.N().S(`</th>
+            `)
+		//line party.qtpl:60
+	}
+	//line party.qtpl:60
+	qw422016.N().S(`
+        </thead>
+        <tbody>
+            `)
+	//line party.qtpl:63
+	for _, coefficient := range p.Coefficients.Coefficients() {
+		//line party.qtpl:63
+		qw422016.N().S(`       
+                <tr>
+                    <th>`)
+		//line party.qtpl:65
+		qw422016.E().S(fmt.Sprintf("%02d", coefficient))
+		//line party.qtpl:65
+		qw422016.N().S(`</th>                        
+                    `)
+		//line party.qtpl:66
+		for _, product := range p.Coefficients.Products() {
+			//line party.qtpl:66
+			qw422016.N().S(`
+                        <td>`)
+			//line party.qtpl:67
+			qw422016.E().V(p.Coefficients[coefficient][product])
+			//line party.qtpl:67
+			qw422016.N().S(`</td>
+                    `)
+			//line party.qtpl:68
+		}
+		//line party.qtpl:68
+		qw422016.N().S(` 
+                </tr>
+	        `)
+		//line party.qtpl:70
+	}
+	//line party.qtpl:70
+	qw422016.N().S(`
+        </tbody>
+        
+    </table>
+
+    `)
+	//line party.qtpl:75
+	for _, sect := range p.ProductVarValues.Sects() {
+		//line party.qtpl:75
+		qw422016.N().S(`    
+        <h3>`)
+		//line party.qtpl:76
+		qw422016.E().S(ankat.SectDescription(sect))
+		//line party.qtpl:76
+		qw422016.N().S(`</h3>
+        <table class="tab2"> 
+            <thead>
+                <tr>
+                    <th colspan = "2">Точка</th> 
+                    `)
+		//line party.qtpl:81
+		for _, product := range p.ProductVarValues.Products() {
+			//line party.qtpl:81
+			qw422016.N().S(`
+                        <th>`)
+			//line party.qtpl:82
+			qw422016.E().V(product)
+			//line party.qtpl:82
+			qw422016.N().S(`</th>
+                    `)
+			//line party.qtpl:83
+		}
+		//line party.qtpl:83
+		qw422016.N().S(` 
+                </tr>
+            </thead>           
+            <tbody>
+                `)
+		//line party.qtpl:87
+		for _, v := range p.ProductVarValues.Vars() {
+			//line party.qtpl:87
+			qw422016.N().S(`
+                    `)
+			//line party.qtpl:88
+			for _, pt := range p.ProductVarValues.Points() {
+				//line party.qtpl:88
+				qw422016.N().S(`
+
+                        `)
+				//line party.qtpl:90
+				if xs, ok := p.ProductVarValues.SectVarPointValues(sect, v, pt); ok {
+					//line party.qtpl:90
+					qw422016.N().S(`
+			                <tr>
+                                <th style="text-align:left;" >`)
+					//line party.qtpl:92
+					qw422016.E().S(ankat.SectPointDescription(sect, pt))
+					//line party.qtpl:92
+					qw422016.N().S(`</th> 
+                                <th style="text-align:right;" >`)
+					//line party.qtpl:93
+					qw422016.E().S(fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)))
+					//line party.qtpl:93
+					qw422016.N().S(`</th>
+                                `)
+					//line party.qtpl:94
+					for _, product := range p.ProductVarValues.Products() {
+						//line party.qtpl:94
+						qw422016.N().S(`
+                                    <td style="text-align:left;">
+                                        `)
+						//line party.qtpl:96
+						if value, ok := xs[product]; ok {
+							//line party.qtpl:96
+							qw422016.N().S(`
+                                            `)
+							//line party.qtpl:97
+							qw422016.N().F(value)
+							//line party.qtpl:97
+							qw422016.N().S(`
+                                        `)
+							//line party.qtpl:98
+						}
+						//line party.qtpl:98
+						qw422016.N().S(`
+                                    </td>
+                                `)
+						//line party.qtpl:100
+					}
+					//line party.qtpl:100
+					qw422016.N().S(` 
+                            </tr>
+			            `)
+					//line party.qtpl:102
+				}
+				//line party.qtpl:102
+				qw422016.N().S(`
+                    `)
+				//line party.qtpl:103
+			}
+			//line party.qtpl:103
+			qw422016.N().S(`
+                `)
+			//line party.qtpl:104
+		}
+		//line party.qtpl:104
+		qw422016.N().S(`
+            </tbody>
+        </table>        
+    `)
+		//line party.qtpl:107
+	}
+	//line party.qtpl:107
+	qw422016.N().S(`   
+
+    </body>
+</html>
 `)
-//line party.qtpl:77
+//line party.qtpl:111
 }
 
-//line party.qtpl:77
-func WriteParty(qq422016 qtio422016.Writer, p dataproducts.PartyInfo) {
-	//line party.qtpl:77
+//line party.qtpl:111
+func WriteParty(qq422016 qtio422016.Writer, p dataproducts.PartyInfo, funcVarName func(ankat.Var) string) {
+	//line party.qtpl:111
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line party.qtpl:77
-	StreamParty(qw422016, p)
-	//line party.qtpl:77
+	//line party.qtpl:111
+	StreamParty(qw422016, p, funcVarName)
+	//line party.qtpl:111
 	qt422016.ReleaseWriter(qw422016)
-//line party.qtpl:77
+//line party.qtpl:111
 }
 
-//line party.qtpl:77
-func Party(p dataproducts.PartyInfo) string {
-	//line party.qtpl:77
+//line party.qtpl:111
+func Party(p dataproducts.PartyInfo, funcVarName func(ankat.Var) string) string {
+	//line party.qtpl:111
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line party.qtpl:77
-	WriteParty(qb422016, p)
-	//line party.qtpl:77
+	//line party.qtpl:111
+	WriteParty(qb422016, p, funcVarName)
+	//line party.qtpl:111
 	qs422016 := string(qb422016.B)
-	//line party.qtpl:77
+	//line party.qtpl:111
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line party.qtpl:77
+	//line party.qtpl:111
 	return qs422016
-//line party.qtpl:77
+//line party.qtpl:111
 }

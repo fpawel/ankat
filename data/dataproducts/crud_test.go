@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func MustSetPartyValue(x *sqlx.DB, kv KeyValue) {
+func MustSetPartyValue(x *sqlx.DB, kv KeyStr) {
 	if err := SetPartyValue(x, kv); err != nil {
 		panic(err)
 	}
@@ -22,7 +22,7 @@ func dbMustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface
 	}
 }
 
-func SetPartyValue(x *sqlx.DB, kv KeyValue) (err error) {
+func SetPartyValue(x *sqlx.DB, kv KeyStr) (err error) {
 	_, err = x.Exec(`
 INSERT OR REPLACE INTO party_value (party_id, param, value)
 VALUES ((SELECT * FROM current_party_id),?,?)`, kv.Key, kv.Key)
@@ -51,7 +51,7 @@ func CreateNewParty(x *sqlx.DB, c NewPartyConfig) (result Party) {
 	x.MustExec(sql)
 
 	for k, v := range c.KeysValues {
-		SetPartyValue(x, KeyValue{k, v})
+		SetPartyValue(x, KeyStr{k, v})
 	}
 
 	result = CurrentParty(x)
