@@ -32,14 +32,6 @@ type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, tex
 type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp() {
-	dbMustOpen("uierrors.db", `
-PRAGMA foreign_keys = ON;
-PRAGMA encoding = 'UTF-8';
-CREATE TABLE IF NOT EXISTS errors (
-  work_order INTEGER PRIMARY KEY,
-  checked TEXT NOT NULL
-);
-`)
 
 	x := &app{
 		db: db{
