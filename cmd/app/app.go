@@ -107,7 +107,6 @@ func runApp() {
 	})
 
 	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) interface {} {
-		panic(nil)
 		return x.mainWork().Task().Info(x.db.dbProducts)
 	})
 
