@@ -12,7 +12,7 @@ import (
 func (x app) mainWork() uiworks.Work {
 
 	return uiworks.L("Настройка Анкат",
-		x.workSetupAndHoldTemperature(20),
+		x.workHoldTemperature(20),
 
 		uiworks.S("Корректировка температуры CPU", func() error {
 			portTemperature, err := x.comport("temp")
@@ -209,8 +209,8 @@ func (x app) workNorming() uiworks.Work {
 	})
 }
 
-func (x app) workSetupAndHoldTemperature(temperature float64) uiworks.Work {
+func (x app) workHoldTemperature(temperature float64) uiworks.Work {
 	return uiworks.S(fmt.Sprintf("Установка термокамеры %v\"C", temperature), func() error {
-		return x.setupAndHoldTemperature(temperature)
+		return x.holdTemperature(temperature)
 	})
 }
