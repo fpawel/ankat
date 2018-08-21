@@ -19,7 +19,6 @@ type Runner struct {
 	chNotifyWork chan notifyWork
 	chGetInterrupted         chan chan bool
 	chEndWork                chan endWork
-	chSubscribeInterrupted   chan chan struct{}
 	chUnsubscribeInterrupted chan chan struct{}
 	chDelay                  chan delayInfo
 	chDelaySkipped           chan struct{}
@@ -62,7 +61,6 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 		chStartMainTask:          make(chan notifyWork),
 		chStartWork:              make(chan runWork),
 		chGetInterrupted:         make(chan chan bool),
-		chSubscribeInterrupted:   make(chan chan struct{}),
 		chUnsubscribeInterrupted: make(chan chan struct{}),
 		chDelay:                  make(chan delayInfo),
 		chDelaySkipped:           make(chan struct{}),
@@ -76,10 +74,7 @@ func NewRunner(processMQ *procmq.ProcessMQ) Runner {
 		x.chStartMainTask <- payload
 		return nil
 	})
-	processMQ.Handle("CURRENT_WORK_STOP", func([]byte) interface {}{
-		x.chInterrupt <- struct{}{}
-		return nil
-	})
+
 	processMQ.Handle("SKIP_DELAY", func([]byte) interface {}{
 		x.chDelaySkipped <- struct{}{}
 		return nil
@@ -104,7 +99,6 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 	started := false
 	interrupted := false
 	closed := false
-	interruptNotifier := &interruptNotifier{}
 	workLogWritten := false
 
 	var currentRunTask *Task
@@ -129,26 +123,18 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			if started {
 				closed = true
 				interrupted = true
-				interruptNotifier.Notify()
 			} else {
 				return
 			}
 
 		case <-x.chInterrupt:
 			interrupted = true
-			interruptNotifier.Notify()
 
 		case m := <-x.chWriteLog:
 			writeLog(m)
 
 		case v := <-x.chDelay:
 			x.delphiApp.Send("DELAY", v)
-
-		case ch := <-x.chSubscribeInterrupted:
-			interruptNotifier.Subscribe(ch)
-
-		case ch := <-x.chUnsubscribeInterrupted:
-			interruptNotifier.Unsubscribe(ch)
 
 		case d := <-x.chStartWork:
 			if started {
@@ -205,7 +191,6 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			}
 			started = false
 			interrupted = true
-			interruptNotifier.Notify()
 			currentRunTask = nil
 			x.delphiApp.Send("END_WORK", struct {
 				Name, Error string
@@ -214,7 +199,6 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 		case <-x.chStop:
 			if started {
 				interrupted = true
-				interruptNotifier.Notify()
 			}
 
 		case r := <-x.chNotifyWork:
@@ -246,14 +230,6 @@ func (x Runner) Interrupted() bool {
 
 func (x Runner) Interrupt() {
 	x.chInterrupt <- struct{}{}
-}
-
-func (x Runner) SubscribeInterrupted(ch chan struct{}, subscribe bool) {
-	if subscribe {
-		x.chSubscribeInterrupted <- ch
-	} else {
-		x.chUnsubscribeInterrupted <- ch
-	}
 }
 
 func (x Runner) WriteError(productSerial ankat.ProductSerial, text string) {
@@ -313,31 +289,6 @@ func (x Runner) WorkDelay(name string, getDuration func() time.Duration, backgro
 		Action: func() error {
 			return x.Delay(name, getDuration(), backgroundWork)
 		},
-	}
-}
-
-type interruptNotifier struct {
-	chs []chan struct{}
-}
-
-func (x *interruptNotifier) Notify() {
-	for _, ch := range x.chs {
-		ch <- struct{}{}
-	}
-	x.chs = nil
-}
-
-func (x *interruptNotifier) Subscribe(ch chan struct{}) {
-	x.chs = append(x.chs, ch)
-}
-
-func (x *interruptNotifier) Unsubscribe(ch chan struct{}) {
-	for i, cha := range x.chs {
-		if cha == ch {
-			x.chs[i] = x.chs[len(x.chs)-1]
-			x.chs[len(x.chs)-1] = nil
-			x.chs = x.chs[:len(x.chs)-1]
-		}
 	}
 }
 
