@@ -46,6 +46,14 @@ func runApp() {
 
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
+	x.delphiApp.Handle("CURRENT_WORK_STOP", func([]byte) interface {}{
+		x.uiWorks.Interrupt()
+		for _,serialPort := range x.comports{
+			serialPort.comport.Interrupt()
+		}
+		return nil
+	})
+
 	x.delphiApp.Handle("CURRENT_WORK_CHECKED_CHANGED", func(bytes []byte) interface{}{
 		var v struct {
 			Ordinal    int
