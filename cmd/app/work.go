@@ -36,7 +36,7 @@ func (x app) comportProduct(p Product, errorLogger errorLogger) (*comport.Port, 
 		portConfig := x.db.ComportSets("products")
 		portConfig.Serial.Name = p.Comport
 		a.comport = comport.NewPort(portConfig)
-		a.err = a.comport.Open(x.uiWorks)
+		a.err = a.comport.Open()
 		x.comports[p.Comport] = a
 		if a.err != nil {
 			errorLogger(p.Serial, a.err.Error())
@@ -51,7 +51,7 @@ func (x app) comport(name string) (*comport.Port, error) {
 	a, existed := x.comports[portConfig.Serial.Name]
 	if !existed || a.err != nil {
 		a.comport = comport.NewPort(portConfig)
-		a.err = a.comport.Open(x.uiWorks)
+		a.err = a.comport.Open()
 		x.comports[portConfig.Serial.Name] = a
 	}
 	return a.comport, a.err
@@ -286,40 +286,25 @@ func (x app) promptErrorStopWork(err error) error {
 	return nil
 }
 
-func (x app) doSetupTemperature(temperature float64) error {
+func (x app) setupTemperature(temperature float64) error {
 	port, err := x.comport("temp")
 	if err != nil {
 		return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 	}
 	deltaTemperature := x.db.ConfigValue("delta_temperature")
 
-	cancelWaitTemperature, chWaitTemperature := termochamber.RunWaitForTemperature(termochamber.WaitTemperatureConfig{
-		ReadTemperature: func() (float64, error) {
+	return termochamber.WaitForSetupTemperature(
+		temperature-deltaTemperature, temperature+deltaTemperature,
+		x.db.ConfigDuration("timeout_temperature")*time.Minute,
+		func() (float64, error) {
 			return termochamber.T800Read(port)
-		},
-		Timeout:        x.db.ConfigDuration("timeout_temperature") * time.Minute,
-		TemperatureMax: temperature - deltaTemperature,
-		TemperatureMin: temperature + deltaTemperature,
-	})
-	chInterrupted := make(chan struct{})
-	x.uiWorks.SubscribeInterrupted(chInterrupted, true)
-	defer x.uiWorks.SubscribeInterrupted(chInterrupted, false)
-	for {
-		select {
-		case <-chInterrupted:
-			cancelWaitTemperature()
-			return errors.New("перервано")
-		case err := <-chWaitTemperature:
-			return err
-		}
-	}
+		})
 }
 
-func (x app) setupAndHoldTemperature(temperature float64) error {
-	if err := x.doSetupTemperature(temperature); err != nil {
-		if err = x.promptErrorStopWork(
-			errors.Wrapf(err,
-				"не удалось установить температуру %v\"С в термокамере", temperature)); err != nil {
+func (x app) holdTemperature(temperature float64) error {
+	if err := x.setupTemperature(temperature); err != nil {
+		errA := errors.Wrapf(err, "не удалось установить температуру %v\"С в термокамере", temperature)
+		if err = x.promptErrorStopWork(errA); err != nil {
 			return err
 		}
 	}
