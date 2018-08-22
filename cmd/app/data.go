@@ -115,6 +115,10 @@ func (x db) IsTwoConcentrationChannels() bool {
 	return x.CurrentPartyValue("sensors_count") == 2
 }
 
+func (x db) IsPressureSensor() bool {
+	return x.CurrentPartyValue("pressure_sensor") == 1
+}
+
 func (x db) IsCO2() bool {
 	return x.CurrentPartyValueStr("gas1") == "CO₂"
 }

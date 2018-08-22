@@ -28,6 +28,19 @@ type SectPoint struct{
 }
 
 const (
+	Lin1 Sect = "LIN1"
+	Lin2 Sect = "LIN2"
+
+	T01 Sect = "T01"
+	T02 Sect = "T02"
+
+	TK1 Sect = "TK1"
+	TK2 Sect = "TK2"
+
+	PT Sect = "PT"
+)
+
+const (
 	GasClose GasCode = iota
 	GasNitrogen
 	GasChan1Middle1
@@ -45,7 +58,10 @@ const (
 	WorkCh1 Var = 652
 	RefCh1  Var = 654
 	Var1Ch1 Var = 656
+	Var2Ch1 Var = 658
 	Var3Ch1 Var = 660
+
+	VdatP Var  =    18
 
 	CoutCh2 Var = 2
 	TppCh2  Var = 674
@@ -54,13 +70,11 @@ const (
 	WorkCh2 Var = 684
 	RefCh2  Var = 686
 	Var1Ch2 Var = 688
+	Var2Ch2 Var = 690
 	Var3Ch2 Var = 692
 )
 
-const (
-	Lin1 Sect = "LIN1"
-	Lin2 Sect = "LIN2"
-)
+
 
 func SectDescription(s Sect) string {
 	return varSects[s]
@@ -145,106 +159,8 @@ func MainVars2() []Var {
 	}
 }
 
-type LinPoint = struct {
-	ProductVar
-	GasCode
-}
-
 func (x GasCode) Var() string {
 	return fmt.Sprintf("cgas%d", x)
 }
 
-func Lin1Points(isCO2 bool) (xs []LinPoint) {
-	xs = []LinPoint{
-		{
-			ProductVar{Point: 0},
-			GasNitrogen,
-		},
-		{
-			ProductVar{Point: 1},
-			GasChan1Middle1,
-		},
-	}
-	if isCO2 {
-		xs = append(xs, LinPoint{ProductVar{Point: 2}, GasChan1Middle2})
-	}
-	xs = append(xs, LinPoint{ProductVar{Point: 3}, GasChan1End})
-	for i := range xs {
-		xs[i].Sect = Lin1
-		xs[i].ProductVar.Var = CoutCh1
-	}
-	return
-}
 
-func Lin2Points() (xs []LinPoint) {
-	xs = []LinPoint{
-		{
-			ProductVar{Point: 0},
-			GasNitrogen,
-		},
-		{
-			ProductVar{Point: 1},
-			GasChan2Middle,
-		},
-		{
-			ProductVar{Point: 2},
-			GasChan2End,
-		},
-	}
-	for i := range xs {
-		xs[i].Sect = Lin2
-		xs[i].ProductVar.Var = CoutCh2
-	}
-	return
-}
-
-func LinProductVars(gas GasCode) []ProductVar {
-	switch gas {
-	case GasNitrogen:
-		return []ProductVar{
-			{
-				Var:   CoutCh1,
-				Sect:  Lin1,
-				Point: 0,
-			},
-			{
-				Var:   CoutCh2,
-				Sect:  Lin2,
-				Point: 0,
-			},
-		}
-	case GasChan1Middle1:
-		return []ProductVar{{
-			Var:   CoutCh1,
-			Sect:  Lin1,
-			Point: 1,
-		}}
-	case GasChan1Middle2:
-		return []ProductVar{{
-			Var:   CoutCh1,
-			Sect:  Lin1,
-			Point: 2,
-		}}
-	case GasChan1End:
-		return []ProductVar{{
-			Var:   CoutCh1,
-			Sect:  Lin1,
-			Point: 3,
-		}}
-	case GasChan2Middle:
-		return []ProductVar{{
-			Var:   CoutCh2,
-			Sect:  Lin2,
-			Point: 1,
-		}}
-	case GasChan2End:
-		return []ProductVar{{
-			Var:   CoutCh2,
-			Sect:  Lin2,
-			Point: 2,
-		}}
-	default:
-		panic(fmt.Sprintf("bad gas: %d", gas))
-
-	}
-}

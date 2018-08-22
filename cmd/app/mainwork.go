@@ -10,10 +10,12 @@ import (
 )
 
 func (x app) mainWork() uiworks.Work {
+	t20gc := func() float64 {
+		return 20
+	}
 
 	return uiworks.L("Настройка Анкат",
-		x.workHoldTemperature(20),
-
+		x.workHoldTemperature("НКУ", t20gc),
 		uiworks.S("Корректировка температуры CPU", func() error {
 			portTemperature, err := x.comport("temp")
 			if err != nil {
@@ -119,7 +121,82 @@ func (x app) mainWork() uiworks.Work {
 		}),
 		x.workSaveLin(),
 		x.workCalculateLin(),
+		x.workTemperaturePoint("низкая температура", func() float64 {
+			return x.db.CurrentPartyValue("t-")
+		}, 0),
+		x.workTemperaturePoint("высокая температура", func() float64 {
+			return x.db.CurrentPartyValue("t+")
+		}, 2),
+		x.workTemperaturePoint("НКУ", t20gc, 1),
 	)
+}
+
+func (x *app) workTemperaturePoint(what string, temperature func () float64, point ankat.Point) (r uiworks.Work) {
+
+	r.Name = fmt.Sprintf("Cнятие на температуре: %s", what)
+	r.Children = append(r.Children,
+		x.workHoldTemperature(what, temperature),
+		x.workBlowGas(ankat.GasNitrogen),
+		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasNitrogen), func(p productDevice) error {
+			xs := []ankat.ProductVar{
+				{
+					Sect: ankat.T01, Var: ankat.TppCh1,
+				},
+				{
+					Sect: ankat.T01, Var: ankat.Var2Ch1,
+				},
+			}
+			if x.db.IsTwoConcentrationChannels() {
+				xs = append(xs, ankat.ProductVar{
+					Sect: ankat.T02, Var: ankat.TppCh2,
+				}, ankat.ProductVar{
+					Sect: ankat.T02, Var: ankat.Var2Ch2,
+				})
+			}
+
+			if x.db.IsPressureSensor() {
+				xs = append(xs, ankat.ProductVar{
+					Sect: ankat.PT, Var: ankat.VdatP,
+				}, ankat.ProductVar{
+					Sect: ankat.PT, Var: ankat.TppCh1,
+				})
+			}
+			for i := range  xs {
+				xs[i].Point = point
+			}
+			return p.fixVarsValues(xs)
+
+		}),
+
+		x.workBlowGas(ankat.GasChan1End),
+		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasChan1End), func(p productDevice) error {
+			return p.fixVarsValues([]ankat.ProductVar{
+				{
+					Sect: ankat.TK1, Var: ankat.TppCh1, Point:point,
+				},
+				{
+					Sect: ankat.TK1, Var: ankat.Var2Ch1, Point:point,
+				},
+			})
+		}),
+	)
+	if x.db.IsTwoConcentrationChannels() {
+		r.Children = append(r.Children,
+		x.workBlowGas(ankat.GasChan2End),
+		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasChan1End), func(p productDevice) error {
+			return p.fixVarsValues([]ankat.ProductVar{
+				{
+					Sect: ankat.TK2, Var: ankat.TppCh2, Point:point,
+				},
+				{
+					Sect: ankat.TK2, Var: ankat.Var2Ch2, Point:point,
+				},
+			})
+		}))
+	}
+	r.Children = append(r.Children, x.workBlowGas(ankat.GasNitrogen))
+
+	return
 }
 
 func (x *app) workCalculateLin() (r uiworks.Work) {
@@ -209,8 +286,14 @@ func (x app) workNorming() uiworks.Work {
 	})
 }
 
-func (x app) workHoldTemperature(temperature float64) uiworks.Work {
-	return uiworks.S(fmt.Sprintf("Установка термокамеры %v\"C", temperature), func() error {
-		return x.holdTemperature(temperature)
+func (x app) workHoldTemperature(what string, temperature func() float64) uiworks.Work {
+	return uiworks.S(fmt.Sprintf("Установка термокамеры: %s", what), func() error {
+		return x.holdTemperature(temperature())
+	})
+}
+
+func (x app) workBlowGas(gas ankat.GasCode) uiworks.Work {
+	return uiworks.S(fmt.Sprintf("Продувка %s", ankat.GasCodeDescription(gas)), func() error {
+		return x.blowGas(gas)
 	})
 }

@@ -70,9 +70,9 @@ INSERT OR IGNORE INTO config (section_name, sort_order, var, name, type, min, ma
   ('Автоматическая настройка', 1, 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3 ),
   ('Автоматическая настройка', 2, 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3 ),
   ('Автоматическая настройка', 3, 'delta_temperature', 'Погрешность установки температуры, "С', 'integer', 1, 5, 3 ),
-  ('Автоматическая настройка', 4, 'timeout_temperature', 'Таймаут установки температуры, минут', 'integer', 5, 270, 120 )
+  ('Автоматическая настройка', 4, 'timeout_temperature', 'Таймаут установки температуры, минут', 'integer', 5, 270, 120 );
 
-;
+
 
 INSERT OR IGNORE INTO value_list(var, value) VALUES
   ('gas1', 'CH₄'),

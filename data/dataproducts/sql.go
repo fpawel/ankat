@@ -170,6 +170,9 @@ INSERT OR IGNORE INTO party_var(sort_order, var, name, type, min, max, def_val) 
   (12, 't-', 'T-,"С', 'real', NULL, NULL, -30 ),
   (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
 
+INSERT OR IGNORE INTO party_var (sort_order, var, name, type, def_val) VALUES
+  (14, 'pressure_sensor', 'Датчик давления', 'bool', 0 );
+
 INSERT OR IGNORE INTO read_var (var, name, description) VALUES
   (0, 'CCh0', 'концентрация - канал 1 (электрохимия 1)'),
   (2, 'CCh1', 'концентрация - канал 2 (электрохимия 2/оптика 1)'),
