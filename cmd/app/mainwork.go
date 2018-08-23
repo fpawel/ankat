@@ -133,66 +133,65 @@ func (x app) mainWork() uiworks.Work {
 
 func (x *app) workTemperaturePoint(what string, temperature func () float64, point ankat.Point) (r uiworks.Work) {
 
+	workSave := func(gas ankat.GasCode, vars []ankat.ProductVar ) uiworks.Work{
+		for i := range  vars {
+			vars[i].Point = point
+		}
+		return x.workEachProduct( fmt.Sprintf("Снятие %s: %s: %v",  what,  ankat.GasCodeDescription(gas), vars), func(p productDevice) error {
+			return p.fixVarsValues(vars)
+		})
+	}
+
+	nitrogenVars := []ankat.ProductVar{
+		{
+			Sect: ankat.T01, Var: ankat.TppCh1,
+		},
+		{
+			Sect: ankat.T01, Var: ankat.Var2Ch1,
+		},
+	}
+	if x.db.IsTwoConcentrationChannels() {
+		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
+			Sect: ankat.T02, Var: ankat.TppCh2,
+		}, ankat.ProductVar{
+			Sect: ankat.T02, Var: ankat.Var2Ch2,
+		})
+	}
+
+	if x.db.IsPressureSensor() {
+		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
+			Sect: ankat.PT, Var: ankat.VdatP,
+		}, ankat.ProductVar{
+			Sect: ankat.PT, Var: ankat.TppCh1,
+		})
+	}
+
 	r.Name = fmt.Sprintf("Cнятие на температуре: %s", what)
 	r.Children = append(r.Children,
 		x.workHoldTemperature(what, temperature),
 		x.workBlowGas(ankat.GasNitrogen),
-		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasNitrogen), func(p productDevice) error {
-			xs := []ankat.ProductVar{
-				{
-					Sect: ankat.T01, Var: ankat.TppCh1,
-				},
-				{
-					Sect: ankat.T01, Var: ankat.Var2Ch1,
-				},
-			}
-			if x.db.IsTwoConcentrationChannels() {
-				xs = append(xs, ankat.ProductVar{
-					Sect: ankat.T02, Var: ankat.TppCh2,
-				}, ankat.ProductVar{
-					Sect: ankat.T02, Var: ankat.Var2Ch2,
-				})
-			}
-
-			if x.db.IsPressureSensor() {
-				xs = append(xs, ankat.ProductVar{
-					Sect: ankat.PT, Var: ankat.VdatP,
-				}, ankat.ProductVar{
-					Sect: ankat.PT, Var: ankat.TppCh1,
-				})
-			}
-			for i := range  xs {
-				xs[i].Point = point
-			}
-			return p.fixVarsValues(xs)
-
-		}),
-
+		workSave( ankat.GasNitrogen, nitrogenVars),
 		x.workBlowGas(ankat.GasChan1End),
-		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasChan1End), func(p productDevice) error {
-			return p.fixVarsValues([]ankat.ProductVar{
-				{
-					Sect: ankat.TK1, Var: ankat.TppCh1, Point:point,
-				},
-				{
-					Sect: ankat.TK1, Var: ankat.Var2Ch1, Point:point,
-				},
-			})
+		workSave(ankat.GasChan1End, []ankat.ProductVar{
+			{
+				Sect: ankat.TK1, Var: ankat.TppCh1,
+			},
+			{
+				Sect: ankat.TK1, Var: ankat.Var2Ch1,
+			},
 		}),
 	)
 	if x.db.IsTwoConcentrationChannels() {
 		r.Children = append(r.Children,
 		x.workBlowGas(ankat.GasChan2End),
-		x.workEachProduct(what + ": " + ankat.GasCodeDescription(ankat.GasChan1End), func(p productDevice) error {
-			return p.fixVarsValues([]ankat.ProductVar{
-				{
-					Sect: ankat.TK2, Var: ankat.TppCh2, Point:point,
-				},
-				{
-					Sect: ankat.TK2, Var: ankat.Var2Ch2, Point:point,
-				},
-			})
-		}))
+		workSave(ankat.GasChan2End, []ankat.ProductVar{
+			{
+				Sect: ankat.TK2, Var: ankat.TppCh2,
+			},
+			{
+				Sect: ankat.TK2, Var: ankat.Var2Ch2,
+			},
+		}),)
 	}
 	r.Children = append(r.Children, x.workBlowGas(ankat.GasNitrogen))
 
