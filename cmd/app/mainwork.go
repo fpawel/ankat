@@ -137,7 +137,16 @@ func (x *app) workTemperaturePoint(what string, temperature func () float64, poi
 		for i := range  vars {
 			vars[i].Point = point
 		}
-		return x.workEachProduct( fmt.Sprintf("Снятие %s: %s: %v",  what,  ankat.GasCodeDescription(gas), vars), func(p productDevice) error {
+		s := ""
+		for _,a := range vars {
+			if s != "" {
+				s += ", "
+			}
+			s += fmt.Sprintf( "%s[%d]%s", a.Sect, a.Point, x.db.VarName(a.Var))
+		}
+
+
+		return x.workEachProduct( fmt.Sprintf("Снятие %s: %s: %s",  what, ankat.GasCodeDescription(gas), s), func(p productDevice) error {
 			return p.fixVarsValues(vars)
 		})
 	}
