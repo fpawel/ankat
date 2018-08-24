@@ -1,6 +1,3 @@
-package dataproducts
-
-const SQLProductsDB string = `
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
@@ -119,9 +116,7 @@ CREATE TABLE IF NOT EXISTS product_value(
   FOREIGN KEY(party_id, product_serial)
   REFERENCES product(party_id, product_serial) ON DELETE CASCADE
 );
-`
 
-const SQLAnkatPartyInfo = `
 CREATE VIEW IF NOT EXISTS party_info AS
   SELECT
 	created_at,
@@ -150,9 +145,6 @@ CREATE VIEW IF NOT EXISTS party_info AS
     INNER JOIN party_value d on p.party_id = d.party_id and d.var = 'sensors_count'
     INNER JOIN party_value e on p.party_id = e.party_id and e.var = 'scale1'
     INNER JOIN party_value g on p.party_id = g.party_id and g.var = 'scale2';
-`
-
-const SQLAnkatVars = `
 
 INSERT OR IGNORE INTO party_var(sort_order, var, name, type, min, max, def_val) VALUES
   (0, 'product_type_number', 'номер исполнения', 'integer', 1, NULL , 10),
@@ -209,9 +201,6 @@ INSERT OR IGNORE INTO read_var (var, name, description) VALUES
   (692, 'Var3Ch1', 'значение дифференциального сигнала с поправкой по чувствительности от температуры - второй канал оптики'),
   (694, 'FppCh1', 'частота преобразования АЦП - второй канал оптики');
 
-`
-
-const SQLWorks = `
 CREATE TABLE IF NOT EXISTS work (
   work_id INTEGER PRIMARY KEY,
   parent_work_id INTEGER,
@@ -272,9 +261,7 @@ CREATE VIEW IF NOT EXISTS last_work_log AS
   FROM last_work a
   INNER JOIN work_log b ON a.work_id = b.work_id
   ORDER BY b.created_at;
-`
 
-const SQLCoefficient = `
 CREATE TABLE IF NOT EXISTS coefficient (
   coefficient_id INTEGER NOT NULL  PRIMARY KEY CHECK (typeof(coefficient_id) = 'integer' AND coefficient_id >= 0),
   name TEXT NOT NULL,
@@ -360,9 +347,8 @@ CREATE VIEW IF NOT EXISTS coefficient_enumerated AS
     LEFT JOIN coefficient AS b
   WHERE a.coefficient_id >= b.coefficient_id
   GROUP BY a.coefficient_id;
-`
 
-const SQLCommands = `
+
 CREATE TABLE IF NOT EXISTS command (
   command_id INTEGER NOT NULL UNIQUE CHECK (command_id >= 0 AND typeof(command_id) = 'integer'),
   description TEXT NOT NULL
@@ -379,9 +365,7 @@ INSERT OR IGNORE INTO command VALUES
   (16, 'Установить тип газа 1'),
   (17, 'Установить тип газа 2'),
   (20, 'Коррекция смещения датчика температуры');
-`
 
-const SQLSeries = `
 CREATE TABLE IF NOT EXISTS series (
   series_id INTEGER PRIMARY KEY,
   created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
@@ -439,6 +423,4 @@ CREATE VIEW IF NOT EXISTS chart_value_info AS
   FROM chart_value AS b
      INNER JOIN series_info s on b.series_id = s.series_id
      INNER JOIN read_var r on b.var = r.var;
-`
 
-const SQLAnkat = SQLProductsDB + SQLAnkatPartyInfo + SQLCoefficient + SQLCommands + SQLWorks + SQLAnkatVars + SQLSeries

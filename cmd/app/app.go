@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
@@ -15,6 +14,8 @@ import (
 	"time"
 	"github.com/fpawel/ankat/cmd/app/templates"
 )
+
+//go:generate go run ./gen_sql_str/main.go
 
 type app struct {
 	uiWorks   uiworks.Runner
@@ -35,11 +36,17 @@ func runApp() {
 
 	x := &app{
 		db: db{
-			dbConfig:   dbMustOpen("config.db", SQLConfigDB),
-			dbProducts: dbMustOpen("products.db", dataproducts.SQLAnkat),
+			dbConfig:   dbMustOpen("config.db", SQLConfig),
+			dbProducts: dbMustOpen("products.db", SQLAnkat),
 		},
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  make(map[string]comportState),
+	}
+
+	for _,s := range []string{
+		"comport_products", "comport_gas", "comport_temperature",
+	} {
+		x.db.dbConfig.MustExec(SQLComport, s)
 	}
 
 	//x.db.EnsurePartyExists()

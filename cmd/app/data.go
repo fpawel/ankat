@@ -43,27 +43,23 @@ func (x db) formatCmd(cmd uint16) (s string) {
 	return
 }
 
-func (x db) ComportSets(id string) (c comport.Config) {
+func (x db) ComportSets(section string) (c comport.Config) {
 	c.Serial.ReadTimeout = time.Millisecond
 
-	s := "comport_" + id
-	q := `SELECT value FROM config WHERE var = $1;`
-	dbMustGet(x.dbConfig, &c.Serial.Name, q, s)
-	dbMustGet(x.dbConfig, &c.Serial.Baud, q, s+"_baud")
+	q := `SELECT value FROM config WHERE section_name = ? AND property_name = ?;`
+	dbMustGet(x.dbConfig, &c.Serial.Name, q, section, "port")
+	dbMustGet(x.dbConfig, &c.Serial.Baud, q, section, "baud")
 
-	dbMustGet(x.dbConfig, &c.Fetch.ReadTimeout, q, s+"_timeout")
+	dbMustGet(x.dbConfig, &c.Fetch.ReadTimeout, q, section, "timeout")
 	c.Fetch.ReadTimeout *= time.Millisecond
 
-	dbMustGet(x.dbConfig, &c.Fetch.ReadByteTimeout, q, s+"_byte_timeout")
+	dbMustGet(x.dbConfig, &c.Fetch.ReadByteTimeout, q, section, "byte_timeout")
 	c.Fetch.ReadByteTimeout *= time.Millisecond
 
-	dbMustGet(x.dbConfig, &c.Fetch.MaxAttemptsRead, q, s+"_repeat_count")
+	dbMustGet(x.dbConfig, &c.Fetch.MaxAttemptsRead, q, section, "repeat_count")
 
-	dbMustGet(x.dbConfig, &c.BounceTimeout, q, s+"_bounce_timeout")
+	dbMustGet(x.dbConfig, &c.BounceTimeout, q, section, "bounce_timeout")
 	c.BounceTimeout *= time.Millisecond
-
-	dbMustGet(x.dbConfig, &c.BounceLimit, q, s+"_bounce_limit")
-
 	return
 }
 
@@ -183,16 +179,24 @@ func (x db) ComportProductsBounceTimeout() time.Duration {
 	return n * time.Millisecond
 }
 
-func (x db) ConfigDuration(name string) time.Duration {
-	var n time.Duration
-	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
-	return n
+func (x db) ConfigDuration(section, property string) time.Duration {
+	return time.Duration( x.ConfigValue(section, property ) )
 }
 
-func (x db) ConfigValue(name string) float64 {
-	var n float64
-	x.dbConfig.Get(&n, `SELECT value FROM config WHERE var = ?;`, name)
-	return n
+func (x db) ConfigValue(section, property string) float64 {
+	var xs []float64
+	dbMustSelect(x.dbConfig, &xs,
+		`SELECT value FROM config WHERE section_name = ? AND config.property_name = ?;`,
+		section, property)
+
+	if len(xs) > 0 {
+		return xs[0]
+	}
+	var v float64
+	dbMustGet(x.dbConfig, &v,
+		`SELECT default_value FROM property WHERE property_name = ?`,
+		property)
+	return v
 }
 
 func (x db) PartyInfo(partyID ankat.PartyID) dataproducts.PartyInfo {

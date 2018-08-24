@@ -17,7 +17,7 @@ func (x app) mainWork() uiworks.Work {
 	return uiworks.L("Настройка Анкат",
 		x.workHoldTemperature("НКУ", t20gc),
 		uiworks.S("Корректировка температуры CPU", func() error {
-			portTemperature, err := x.comport("temp")
+			portTemperature, err := x.comport("comport_temperature")
 			if err != nil {
 				return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 			}

@@ -33,7 +33,7 @@ func (x app) closeOpenedComports(logger logger) {
 func (x app) comportProduct(p Product, errorLogger errorLogger) (*comport.Port, error) {
 	a, existed := x.comports[p.Comport]
 	if !existed || a.err != nil {
-		portConfig := x.db.ComportSets("products")
+		portConfig := x.db.ComportSets("comport_products")
 		portConfig.Serial.Name = p.Comport
 		a.comport = comport.NewPort(portConfig)
 		a.err = a.comport.Open()
@@ -260,12 +260,12 @@ func (x app) blowGas(gas ankat.GasCode) error {
 	if err := x.switchGas(gas); err != nil {
 		return errors.Wrapf(err, "не удалось переключить клапан %s", ankat.GasCodeDescription(gas))
 	}
-	duration := x.db.ConfigDuration(param) * time.Minute
+	duration := x.db.ConfigDuration("automatic_work", param) * time.Minute
 	return x.doDelayWithReadProducts(what, duration)
 }
 
 func (x app) switchGas(n ankat.GasCode) error {
-	port, err := x.comport("gas")
+	port, err := x.comport("comport_gas")
 	if err != nil {
 		return errors.Wrap(err, "не удалось открыть СОМ порт газового блока")
 	}
@@ -287,15 +287,15 @@ func (x app) promptErrorStopWork(err error) error {
 }
 
 func (x app) setupTemperature(temperature float64) error {
-	port, err := x.comport("temp")
+	port, err := x.comport("comport_temperature")
 	if err != nil {
 		return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 	}
-	deltaTemperature := x.db.ConfigValue("delta_temperature")
+	deltaTemperature := x.db.ConfigValue("automatic_work","delta_temperature")
 
 	return termochamber.WaitForSetupTemperature(
 		temperature-deltaTemperature, temperature+deltaTemperature,
-		x.db.ConfigDuration("timeout_temperature")*time.Minute,
+		x.db.ConfigDuration("automatic_work","timeout_temperature")*time.Minute,
 		func() (float64, error) {
 			return termochamber.T800Read(port)
 		})
@@ -308,7 +308,7 @@ func (x app) holdTemperature(temperature float64) error {
 			return err
 		}
 	}
-	duration := x.db.ConfigDuration("delay_temperature") * time.Hour
+	duration := x.db.ConfigDuration("automatic_work","delay_temperature") * time.Hour
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)
