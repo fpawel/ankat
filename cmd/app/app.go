@@ -3,16 +3,18 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
+	"github.com/fpawel/ankat/cmd/app/templates"
+	"github.com/fpawel/ankat/data/dataproducts"
 	"github.com/fpawel/ankat/data/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
 	_ "github.com/mattn/go-sqlite3"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"github.com/fpawel/ankat/cmd/app/templates"
 )
 
 //go:generate go run ./gen_sql_str/main.go
@@ -42,12 +44,32 @@ func runApp() {
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  make(map[string]comportState),
 	}
-
-	for _,s := range []string{
-		"comport_products", "comport_gas", "comport_temperature",
-	} {
-		x.db.dbConfig.MustExec(SQLComport, s)
+	if !dataproducts.PartyExists(x.db.dbProducts){
+		fmt.Println("must create party")
+		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
+		if err := cmd.Start(); err != nil {
+			panic(err)
+		}
+		if err := cmd.Wait(); err != nil {
+			panic(err)
+		}
+		if !dataproducts.PartyExists(x.db.dbProducts){
+			fmt.Println("not created")
+			return
+		}
 	}
+
+	{
+		for _,s := range []string{
+			"comport_products", "comport_gas", "comport_temperature",
+		} {
+			_,err := x.db.dbConfig.NamedExec(SQLComport, map[string]interface{}{"section_name": s} )
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+
 
 	//x.db.EnsurePartyExists()
 
@@ -131,6 +153,7 @@ func runApp() {
 
 		return str
 	})
+
 
 	fmt.Println("delphiApp connecting...")
 	if err := x.delphiApp.Connect(); err != nil {

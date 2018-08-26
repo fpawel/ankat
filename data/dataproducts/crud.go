@@ -54,10 +54,11 @@ WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
 
 func CurrentPartyValueStr(x *sqlx.DB, name string) (value string) {
 	dbMustGet(x, &value, `
-SELECT value FROM party_value 
-WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
+SELECT value FROM current_party_var_value WHERE var=?;`, name)
 	return
 }
+
+
 
 func dbMustGet(db *sqlx.DB, dest interface{}, query string, args ...interface{}) {
 	if err := db.Get(dest, query, args...); err != nil {
@@ -70,3 +71,52 @@ func dbMustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface
 		panic(err)
 	}
 }
+
+func PartyExists(x *sqlx.DB) (exists bool){
+	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
+	return
+}
+
+//func EnsurePartyExists(x *sqlx.DB) {
+//	var exists bool
+//	dbMustGet(x, &exists, `SELECT exists(SELECT party_id FROM party);`)
+//	if exists {
+//		return
+//	}
+//	x.MustExec(`
+//INSERT INTO party(party_id)  VALUES(1);
+//INSERT INTO product(party_id, product_serial) VALUES (1,1), (1,2), (1,3), (1,4), (1,5);`)
+//
+//	var vars []string
+//	dbMustSelect(x, &vars, `SELECT var FROM party_var`)
+//
+//	const (
+//		sqlDefVal = `SELECT def_val FROM party_var WHERE var = ?`
+//		sqlSet    = `INSERT INTO party_value (party_id, var, value) VALUES (1, ?, ?);`
+//	)
+//	for _, aVar := range vars {
+//
+//		var strType string
+//		dbMustGet(x, &strType, `SELECT type FROM party_var WHERE var = ?`, aVar)
+//		switch strType {
+//		case "integer":
+//			var value int
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		case "bool":
+//			var value bool
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		case "text":
+//			var value string
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		case "real":
+//			var value float64
+//			dbMustGet(x, &value, sqlDefVal, aVar)
+//			x.MustExec(sqlSet, aVar, value)
+//		default:
+//			panic(strType)
+//		}
+//	}
+//}

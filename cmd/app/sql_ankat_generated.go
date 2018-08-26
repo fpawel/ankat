@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS party_var (
   name TEXT NOT NULL CHECK ( name != ''),
   sort_order INTEGER NOT NULL DEFAULT 0,
   type TEXT NOT NULL CHECK (type in ('bool','integer', 'real', 'text')),
-  min, max, def_val
+  min, max,
+  def_val NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS party_value (
@@ -264,6 +265,19 @@ CREATE VIEW IF NOT EXISTS last_work_log AS
   FROM last_work a
   INNER JOIN work_log b ON a.work_id = b.work_id
   ORDER BY b.created_at;
+
+CREATE VIEW IF NOT EXISTS current_party_var_value AS
+  SELECT party_var.var AS var,
+         party_var.def_val AS def_val,
+         party_var.name AS name,
+         party_var.sort_order AS sort_order,
+         party_var.min AS min,
+         party_var.max AS max,
+         party_var.type AS type,
+         party_value.value AS value
+  FROM  party_var
+          INNER JOIN party_value ON party_var.var = party_value.var
+  WHERE party_value.party_id IN current_party_id;
 
 CREATE TABLE IF NOT EXISTS coefficient (
   coefficient_id INTEGER NOT NULL  PRIMARY KEY CHECK (typeof(coefficient_id) = 'integer' AND coefficient_id >= 0),

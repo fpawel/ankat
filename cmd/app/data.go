@@ -184,18 +184,10 @@ func (x db) ConfigDuration(section, property string) time.Duration {
 }
 
 func (x db) ConfigValue(section, property string) float64 {
-	var xs []float64
-	dbMustSelect(x.dbConfig, &xs,
-		`SELECT value FROM config WHERE section_name = ? AND config.property_name = ?;`,
-		section, property)
-
-	if len(xs) > 0 {
-		return xs[0]
-	}
 	var v float64
 	dbMustGet(x.dbConfig, &v,
-		`SELECT default_value FROM property WHERE property_name = ?`,
-		property)
+		`SELECT value FROM config WHERE section_name = ? AND property_name = ?;`,
+		section, property)
 	return v
 }
 
