@@ -107,6 +107,14 @@ func (x db) CurrentPartyValueStr(name string) (value string) {
 	return dataproducts.CurrentPartyValueStr(x.dbProducts, name)
 }
 
+func (x db) ConcentrationChannels() (xs []ankat.ConcentrationChannel){
+	xs = append(xs, ankat.ConcentrationChannel1)
+	if x.IsTwoConcentrationChannels() {
+		xs = append(xs, ankat.ConcentrationChannel2)
+	}
+	return
+}
+
 func (x db) IsTwoConcentrationChannels() bool {
 	return x.CurrentPartyValue("sensors_count") == 2
 }

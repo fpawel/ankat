@@ -252,13 +252,13 @@ func (x app) doPause(what string, duration time.Duration) {
 
 func (x app) blowGas(gas ankat.GasCode) error {
 	param := "delay_blow_nitrogen"
-	what := fmt.Sprintf("продувка газа %s", ankat.GasCodeDescription(gas))
+	what := fmt.Sprintf("продувка газа %s", gas.Description())
 	if gas == ankat.GasNitrogen {
 		param = "delay_blow_gas"
 		what = "продувка азота"
 	}
 	if err := x.switchGas(gas); err != nil {
-		return errors.Wrapf(err, "не удалось переключить клапан %s", ankat.GasCodeDescription(gas))
+		return errors.Wrapf(err, "не удалось переключить клапан %s", gas.Description())
 	}
 	duration := x.db.ConfigDuration("automatic_work", param) * time.Minute
 	return x.doDelayWithReadProducts(what, duration)

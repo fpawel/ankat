@@ -45,7 +45,7 @@ func runApp() {
 		comports:  make(map[string]comportState),
 	}
 	if !dataproducts.PartyExists(x.db.dbProducts){
-		fmt.Println("must create party")
+		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
 		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
 		if err := cmd.Start(); err != nil {
 			panic(err)

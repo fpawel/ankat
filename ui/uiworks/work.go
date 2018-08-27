@@ -6,6 +6,14 @@ type Work struct {
 	Action   func() error
 }
 
+func (x *Work) AddChild(w Work) {
+	x.Children = append(x.Children, w)
+}
+
+func (x *Work) AddChildren(children ...Work) {
+	x.Children = append(x.Children, children...)
+}
+
 func S(name string, action Action) Work {
 	return Work{
 		Name:   name,

@@ -16,6 +16,11 @@ type Point int
 
 type Coefficient int
 
+type SectInfo struct {
+	What string
+	Coefficient0 Coefficient
+}
+
 type ProductVar struct {
 	Sect  Sect
 	Var   Var
@@ -27,7 +32,9 @@ type SectPoint struct{
 	Point
 }
 
+
 const (
+
 	Lin1 Sect = "LIN1"
 	Lin2 Sect = "LIN2"
 
@@ -51,6 +58,7 @@ const (
 )
 
 const (
+
 	CoutCh1 Var = 0
 	TppCh1  Var = 642
 	UwCh1   Var = 648
@@ -74,41 +82,42 @@ const (
 	Var3Ch2 Var = 692
 )
 
+func (x Sect) Description() string {
+	return sectInfo[x].What
+}
 
-
-func SectDescription(s Sect) string {
-	return varSects[s]
+func (x Sect) Coefficient0() Coefficient {
+	return sectInfo[x].Coefficient0
 }
 
 func Sects() (xs []Sect) {
-	for s := range varSects {
+	for s := range sectInfo {
 		xs = append(xs, s)
 	}
 	return
 }
 
-func GasCodeDescription(gasCode GasCode) string {
-	if s, ok := gases[gasCode]; ok {
+func (x GasCode) Description() string {
+	if s, ok := gases[x]; ok {
 		return s
 	}
-	panic(fmt.Sprintf("unknown gas code: %d", gasCode))
+	panic(fmt.Sprintf("unknown gas code: %d", x))
 }
 
-func SectPointDescription(sect Sect, point Point) string {
-	if s, ok := pointSectDescription[SectPoint{sect, point}]; ok {
+func (x Sect) PointDescription(point Point) string {
+	if s, ok := pointSectDescription[SectPoint{x, point}]; ok {
 		return s
 	}
 	return fmt.Sprintf("№%d", point+1)
 }
 
 
-var varSects = map[Sect]string{
-	Lin1: "линеаризация к.1",
-	Lin2: "линеаризация к.2",
+
+
+var sectInfo = map[Sect]SectInfo{
+	Lin1: { "линеаризация к.1", 23},
+	Lin2: {"линеаризация к.2", 33},
 }
-
-
-
 
 var gases = map[GasCode]string{
 	GasNitrogen:     "ПГС1 азот",

@@ -73,7 +73,7 @@
     </table>
 
     {% for _,sect := range p.ProductVarValues.Sects() %}    
-        <h3>{%s ankat.SectDescription(sect) %}</h3>
+        <h3>{%s sect.Description() %}</h3>
         <table class="tab2"> 
             <thead>
                 <tr>
@@ -89,7 +89,7 @@
 
                         {% if xs,ok := p.ProductVarValues.SectVarPointValues(sect, v, pt); ok %}
 			                <tr>
-                                <th style="text-align:left;" >{%s ankat.SectPointDescription(sect,pt) %}</th> 
+                                <th style="text-align:left;" >{%s sect.PointDescription(pt) %}</th> 
                                 <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)) %}</th>
                                 {% for _,product := range p.ProductVarValues.Products() %}
                                     <td style="text-align:left;">

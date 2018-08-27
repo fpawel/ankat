@@ -27,6 +27,11 @@ type readProductResult struct {
 	Error        string
 }
 
+type CoefficientValue struct {
+	Coefficient ankat.Coefficient
+	Value float64
+}
+
 func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err error, format string, a ...interface{}) {
 	if fetch.Canceled(err) {
 		return
@@ -126,20 +131,10 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 	return value, err
 }
 
-func (x productDevice) writeCoefficientsFrom(coefficient0 ankat.Coefficient, coefficients []float64) error {
-	for i, value := range coefficients {
-		if err := x.writeCoefficientValue(coefficient0+ankat.Coefficient(i), value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+
 
 func (x productDevice) writeInitCoefficients() error {
-	type cv struct {
-		Coefficient ankat.Coefficient
-		Value       float64
-	}
+
 
 	sensorCode := func(gas string, scale float64) float64 {
 		switch gas {
@@ -170,7 +165,7 @@ func (x productDevice) writeInitCoefficients() error {
 		return x.db.CurrentPartyValueStr(name)
 	}
 
-	xs := []cv{
+	xs := []CoefficientValue{
 		{2, float64(time.Now().Year())},
 		{6, sensorCode(
 			str("gas1"),
@@ -199,7 +194,7 @@ func (x productDevice) writeInitCoefficients() error {
 
 	if x.db.IsTwoConcentrationChannels() {
 
-		xs2 := []cv{
+		xs2 := []CoefficientValue{
 			{15, sensorCode(
 				str("gas2"),
 				val("scale2")),
@@ -220,15 +215,7 @@ func (x productDevice) writeInitCoefficients() error {
 		xs = append(xs, xs2...)
 	}
 
-	for _, c := range xs {
-		//if x.workCtrl.Interrupted() {
-		//	return errors.New("прервано")
-		//}
-		if err := x.writeCoefficientValue(c.Coefficient, c.Value); err != nil {
-			return err
-		}
-	}
-	return nil
+	return x.writeCoefficientValues(xs)
 }
 
 func (x productDevice) sendSetWorkModeCmd(mode float64) error {
@@ -307,6 +294,24 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 		}
 	}
 	return err
+}
+
+func (x productDevice) writeCoefficientValues(coefficientValues []CoefficientValue) error {
+	for _,k := range coefficientValues {
+		if err := x.writeCoefficientValue(k.Coefficient, k.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (x productDevice) writeCoefficientsFrom(coefficient0 ankat.Coefficient, values []float64) error {
+	for i, value := range values {
+		if err := x.writeCoefficientValue(coefficient0+ankat.Coefficient(i), value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
