@@ -2,7 +2,6 @@ package dataproducts
 
 import (
 	"github.com/fpawel/ankat"
-	"github.com/jmoiron/sqlx"
 	"sort"
 	"time"
 )
@@ -26,71 +25,7 @@ type KeyStr struct {
 
 type ProductVarValues map[ankat.Sect]map[ankat.Var]map[ankat.Point]map[ankat.ProductSerial]float64
 
-func GetPartyInfo(x *sqlx.DB, partyID ankat.PartyID) (party PartyInfo) {
-	dbMustGet(x, &party, `
-SELECT party_id, created_at FROM party WHERE party_id = $1;`, partyID)
 
-	dbMustSelect(x, &party.Products, `
-SELECT product_serial
-FROM product
-WHERE party_id = $1
-ORDER BY product_serial ASC;`, partyID)
-
-	dbMustSelect(x, &party.Values, `SELECT name, value FROM party_value2 WHERE party_id = ?;`, partyID)
-
-	var coefficients []struct {
-		Coefficient   ankat.Coefficient   `db:"coefficient_id"`
-		ProductSerial ankat.ProductSerial `db:"product_serial"`
-		Value         float64             `db:"value"`
-	}
-	dbMustSelect(x, &coefficients, `
-SELECT coefficient_id, product_serial, value FROM product_coefficient_value WHERE party_id = ?;
-`, partyID)
-
-	for _, k := range coefficients {
-		if len(party.Coefficients) == 0 {
-			party.Coefficients = make(Coefficients)
-		}
-		if _, f := party.Coefficients[k.Coefficient]; !f {
-			party.Coefficients[k.Coefficient] = make(map[ankat.ProductSerial]float64)
-		}
-		party.Coefficients[k.Coefficient][k.ProductSerial] = k.Value
-	}
-
-	var productVarValues []struct {
-		Sect   ankat.Sect          `db:"section"`
-		Var    ankat.Var           `db:"var"`
-		Point ankat.Point			`db:"point"`
-		Serial ankat.ProductSerial `db:"product_serial"`
-		Value  float64             `db:"value"`
-	}
-	dbMustSelect(x, &productVarValues, `
-SELECT section, var, point, product_serial, value 
-FROM product_value
-WHERE party_id = ?;
-`, partyID)
-
-	for _, k := range productVarValues {
-		if len(party.ProductVarValues) == 0 {
-			party.ProductVarValues = make(ProductVarValues)
-		}
-		if _, f := party.ProductVarValues[k.Sect]; !f {
-			party.ProductVarValues[k.Sect] = make(map[ankat.Var]map[ankat.Point]map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var]; !f {
-			party.ProductVarValues[k.Sect][k.Var] = make(map[ankat.Point]map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var][k.Point]; !f {
-			party.ProductVarValues[k.Sect][k.Var][k.Point] = make(map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var][k.Point]; !f {
-			party.ProductVarValues[k.Sect][k.Var][k.Point] = make(map[ankat.ProductSerial]float64)
-		}
-		party.ProductVarValues[k.Sect][k.Var][k.Point][k.Serial] = k.Value
-	}
-
-	return
-}
 
 func (x ProductVarValues) Sects() (sects []ankat.Sect) {
 	for sect := range x {

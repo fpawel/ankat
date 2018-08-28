@@ -1,4 +1,4 @@
-package main
+package dataconfig
 
 const SQLConfig = `
 PRAGMA foreign_keys = ON;

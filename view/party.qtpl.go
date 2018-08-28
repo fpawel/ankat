@@ -2,10 +2,10 @@
 // See https://github.com/valyala/quicktemplate for details.
 
 //line party.qtpl:1
-package templates
+package view
 
 //line party.qtpl:1
-import "github.com/fpawel/ankat/data/dataproducts"
+import "github.com/fpawel/ankat/dataankat/dataproducts"
 
 //line party.qtpl:2
 import "github.com/fpawel/ankat"

@@ -138,6 +138,7 @@ func (x app) mainWork() (result uiworks.Work) {
 	)
 
 	x.addWorkCalculateAndWriteT0(&result)
+	x.addWorkCalculateAndWriteTK(&result)
 
 
 	return result
@@ -262,6 +263,17 @@ func (x *app) addWorkCalculateAndWriteT0(parentWork *uiworks.Work)  {
 			sect:channel.T0(),
 			calcFunc: func(p productData) ([]float64, []numeth.Coordinate, error) {
 				return p.calculateT0(channel)
+			},
+		}
+	})
+}
+
+func (x *app) addWorkCalculateAndWriteTK(parentWork *uiworks.Work)  {
+	x.addWorkCalculateAndWriteCoefficientsSect( parentWork, "Термокомпенсация конца шкалы", func(channel ankat.ConcentrationChannel) calcSect {
+		return calcSect{
+			sect:channel.TK(),
+			calcFunc: func(p productData) ([]float64, []numeth.Coordinate, error) {
+				return p.calculateTK(channel)
 			},
 		}
 	})

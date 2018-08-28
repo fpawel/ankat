@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/cmd/app/templates"
-	"github.com/fpawel/ankat/data/dataproducts"
-	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/dataankat"
+	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
+	"github.com/fpawel/ankat/view"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
 	_ "github.com/mattn/go-sqlite3"
@@ -21,7 +21,7 @@ import (
 
 type app struct {
 	uiWorks   uiworks.Runner
-	db        db
+	db        dataankat.DBAnkat
 	delphiApp *procmq.ProcessMQ
 	comports  map[string]comportState
 }
@@ -37,14 +37,11 @@ type errorLogger = func(productSerial ankat.ProductSerial, text string)
 func runApp() {
 
 	x := &app{
-		db: db{
-			dbConfig:   dbMustOpen("config.db", SQLConfig),
-			dbProducts: dbMustOpen("products.db", SQLAnkat),
-		},
+		db: dataankat.MustOpen(),
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  make(map[string]comportState),
 	}
-	if !dataproducts.PartyExists(x.db.dbProducts){
+	if !x.db.PartyExists(){
 		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
 		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
 		if err := cmd.Start(); err != nil {
@@ -53,22 +50,13 @@ func runApp() {
 		if err := cmd.Wait(); err != nil {
 			panic(err)
 		}
-		if !dataproducts.PartyExists(x.db.dbProducts){
+		if !x.db.PartyExists(){
 			fmt.Println("not created")
 			return
 		}
 	}
 
-	{
-		for _,s := range []string{
-			"comport_products", "comport_gas", "comport_temperature",
-		} {
-			_,err := x.db.dbConfig.NamedExec(SQLComport, map[string]interface{}{"section_name": s} )
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
+
 
 
 	//x.db.EnsurePartyExists()
@@ -89,7 +77,7 @@ func runApp() {
 			CheckState string
 		}
 		mustUnmarshalJson(bytes, &v)
-		x.db.dbConfig.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
+		x.db.DBConfig.DB.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
 			v.Ordinal, v.CheckState)
 		return nil
 	})
@@ -144,22 +132,23 @@ func runApp() {
 	})
 
 	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) interface {} {
-		return x.mainWork().Task().Info(x.db.dbProducts)
+		return x.mainWork().Task().Info(x.db.DBProducts.DB)
 	})
 
 	x.delphiApp.Handle("PARTY_INFO", func(bytes []byte) interface {} {
 		partyID := ankat.PartyID(mustParseInt64(bytes))
-		str := templates.Party( x.db.PartyInfo(partyID), x.db.VarName )
+		str := view.Party( x.db.PartyInfo(partyID), x.db.VarName )
 
 		return str
 	})
 
 
-	fmt.Println("delphiApp connecting...")
+
+	fmt.Print("peer: connecting...")
 	if err := x.delphiApp.Connect(); err != nil {
 		panic(err)
 	}
-	fmt.Println("delphiApp connected")
+	fmt.Println("peer: connected")
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -174,11 +163,11 @@ func runApp() {
 	}()
 
 	go func() {
-		x.uiWorks.Run(x.db.dbProducts, x.db.dbConfig, x.mainWork().Task())
+		x.uiWorks.Run(x.db.DBProducts.DB, x.db.DBConfig.DB, x.mainWork().Task())
 		wg.Done()
 	}()
 
-	fmt.Println("delphiApp started")
+	fmt.Println("peer application started")
 	wg.Wait()
 }
 

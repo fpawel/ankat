@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/data/dataproducts"
-	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/dataankat/dataproducts"
+	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/modbus"
@@ -30,10 +30,10 @@ func (x app) closeOpenedComports(logger logger) {
 	}
 }
 
-func (x app) comportProduct(p Product, errorLogger errorLogger) (*comport.Port, error) {
+func (x app) comportProduct(p dataproducts.Product, errorLogger errorLogger) (*comport.Port, error) {
 	a, existed := x.comports[p.Comport]
 	if !existed || a.err != nil {
-		portConfig := x.db.ComportSets("comport_products")
+		portConfig := x.db.ConfigComport("comport_products")
 		portConfig.Serial.Name = p.Comport
 		a.comport = comport.NewPort(portConfig)
 		a.err = a.comport.Open()
@@ -47,7 +47,7 @@ func (x app) comportProduct(p Product, errorLogger errorLogger) (*comport.Port, 
 }
 
 func (x app) comport(name string) (*comport.Port, error) {
-	portConfig := x.db.ComportSets(name)
+	portConfig := x.db.ConfigComport(name)
 	a, existed := x.comports[portConfig.Serial.Name]
 	if !existed || a.err != nil {
 		a.comport = comport.NewPort(portConfig)
@@ -59,7 +59,7 @@ func (x app) comport(name string) (*comport.Port, error) {
 
 func (x app) sendCmd(cmd uint16, value float64) error {
 	x.uiWorks.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
-		x.db.formatCmd(cmd), value)
+		x.db.FormatCmd(cmd), value)
 	return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
 		return nil
@@ -69,9 +69,9 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
-		dataworks.AddRootWork(x.db.dbProducts, "опрос")
-		dataproducts.CreateNewSeries(x.db.dbProducts)
-		defer dataproducts.DeleteLastEmptySeries(x.db.dbProducts)
+		dataworks.AddRootWork(x.db.DBProducts.DB, "опрос")
+		x.db.CreateNewSeries()
+		defer x.db.DeleteLastEmptySeries()
 
 		for {
 
@@ -94,7 +94,7 @@ func (x app) runReadVarsWork() {
 						}
 						value, err := p.readVar(v.Var)
 						if err == nil {
-							dataproducts.AddChartValue(x.db.dbProducts, p.product.Serial, v.Var, value)
+							x.db.AddChartValue( p.product.Serial, v.Var, value)
 						}
 					}
 					return nil
@@ -169,7 +169,7 @@ func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice
 	return nil
 }
 
-func (x app) doProductDevice(p Product, errorLogger errorLogger, w func(p productDevice) error) {
+func (x app) doProductDevice(p dataproducts.Product, errorLogger errorLogger, w func(p productDevice) error) {
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
 	}{p.Ordinal})
@@ -195,7 +195,7 @@ func (x app) doProductDevice(p Product, errorLogger errorLogger, w func(p produc
 }
 
 func (x app) doDelayWithReadProducts(what string, duration time.Duration) error {
-	dataproducts.CreateNewSeries(x.db.dbProducts)
+	x.db.CreateNewSeries()
 	vars := ankat.MainVars1()
 	if x.db.IsTwoConcentrationChannels() {
 		vars = append(vars, ankat.MainVars2()...)
@@ -226,7 +226,7 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 		}, func(p productDevice) error {
 			value, err := p.readVar(vars[iV])
 			if err == nil {
-				dataproducts.AddChartValue(x.db.dbProducts, p.product.Serial, vars[iV], value)
+				x.db.AddChartValue( p.product.Serial, vars[iV], value)
 			}
 			return nil
 		})
@@ -260,7 +260,7 @@ func (x app) blowGas(gas ankat.GasCode) error {
 	if err := x.switchGas(gas); err != nil {
 		return errors.Wrapf(err, "не удалось переключить клапан %s", gas.Description())
 	}
-	duration := x.db.ConfigDuration("automatic_work", param) * time.Minute
+	duration := x.db.ConfigMinute("automatic_work", param)
 	return x.doDelayWithReadProducts(what, duration)
 }
 
@@ -291,11 +291,11 @@ func (x app) setupTemperature(temperature float64) error {
 	if err != nil {
 		return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 	}
-	deltaTemperature := x.db.ConfigValue("automatic_work","delta_temperature")
+	deltaTemperature := x.db.ConfigFloat64("automatic_work","delta_temperature")
 
 	return termochamber.WaitForSetupTemperature(
 		temperature-deltaTemperature, temperature+deltaTemperature,
-		x.db.ConfigDuration("automatic_work","timeout_temperature")*time.Minute,
+		x.db.ConfigMinute("automatic_work","timeout_temperature") ,
 		func() (float64, error) {
 			return termochamber.T800Read(port)
 		})
@@ -308,7 +308,7 @@ func (x app) holdTemperature(temperature float64) error {
 			return err
 		}
 	}
-	duration := x.db.ConfigDuration("automatic_work","delay_temperature") * time.Hour
+	duration := x.db.ConfigHour("automatic_work","delay_temperature")
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)

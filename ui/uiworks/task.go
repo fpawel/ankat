@@ -1,7 +1,7 @@
 package uiworks
 
 import (
-	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )

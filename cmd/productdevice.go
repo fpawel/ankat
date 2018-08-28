@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/data/dataproducts"
-	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/fetch"
 	"github.com/fpawel/guartutils/modbus"
@@ -256,9 +255,9 @@ func (x productDevice) sendCmd(cmd uint16, value float64) error {
 func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 	err := x.sendCmd(cmd, value)
 	if err == nil {
-		x.writeInfof("%s: %v", x.db.formatCmd(cmd), value)
+		x.writeInfof("%s: %v", x.db.FormatCmd(cmd), value)
 	} else {
-		x.writeErrorf("%s: %v: %v", x.db.formatCmd(cmd), value, err)
+		x.writeErrorf("%s: %v: %v", x.db.FormatCmd(cmd), value, err)
 	}
 	return err
 }
@@ -323,7 +322,7 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	}
 	x.notifyConnected(err, "K%d:=%v", coefficient, value)
 	if err == nil {
-		dataproducts.SetCoefficientValue(x.db.dbProducts, x.product.Serial, coefficient, value)
+		x.db.SetCoefficientValue(x.product.Serial, coefficient, value)
 		x.writeInfof("K%d:=%v", coefficient, value)
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, value, err)

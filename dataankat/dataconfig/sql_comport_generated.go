@@ -1,4 +1,4 @@
-package main
+package dataconfig
 
 const SQLComport = `
 INSERT OR IGNORE INTO config ( sort_order, section_name, property_name, hint, type, min, max, default_value, value)

@@ -2,7 +2,7 @@ package dataproducts
 
 import (
 	"github.com/fpawel/ankat"
-	"github.com/jmoiron/sqlx"
+	"github.com/fpawel/ankat/dataankat/dbutils"
 	"time"
 )
 
@@ -13,19 +13,19 @@ type Series struct {
 	Name      string        `db:"name"`
 }
 
-func CreateNewSeries(x *sqlx.DB) {
-	x.MustExec(`
+func (x DBProducts) CreateNewSeries() {
+	x.DB.MustExec(`
 INSERT INTO  series (work_id) 
 VALUES ( (SELECT work_id FROM work  ORDER BY created_at DESC LIMIT 1));`)
 }
 
-func GetLastSeries() (x *sqlx.DB, series Series) {
-	dbMustGet(x, series, `SELECT * FROM last_series`)
+func (x DBProducts) GetLastSeries() (series Series) {
+	dbutils.MustGet(x.DB, series, `SELECT * FROM last_series`)
 	return
 }
 
-func AddChartValue(x *sqlx.DB, serial ankat.ProductSerial, keyVar ankat.Var, value float64) {
-	x.MustExec(`
+func (x DBProducts) AddChartValue( serial ankat.ProductSerial, keyVar ankat.Var, value float64) {
+	x.DB.MustExec(`
 INSERT INTO chart_value (series_id, product_serial, var, x, y)
 VALUES
   ( (SELECT series_id FROM last_series), ?, ?,
@@ -35,8 +35,8 @@ VALUES
 `, serial, keyVar, value)
 }
 
-func DeleteLastEmptySeries(x *sqlx.DB) {
-	x.MustExec(`
+func (x DBProducts) DeleteLastEmptySeries() {
+	x.DB.MustExec(`
 WITH a AS (SELECT series_id FROM last_series)
 DELETE FROM series WHERE
   series_id IN (SELECT * FROM a) AND
@@ -45,8 +45,8 @@ DELETE FROM series WHERE
 `)
 }
 
-func DeleteAllEmptySeries(x *sqlx.DB) {
-	x.MustExec(`
+func (x DBProducts) DeleteAllEmptySeries() {
+	x.DB.MustExec(`
 DELETE FROM series WHERE NOT exists(
     SELECT * FROM chart_value WHERE chart_value.series_id = series.series_id)
 `)

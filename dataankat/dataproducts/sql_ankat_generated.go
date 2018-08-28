@@ -1,4 +1,4 @@
-package main
+package dataproducts
 
 const SQLAnkat = `
 PRAGMA foreign_keys = ON;

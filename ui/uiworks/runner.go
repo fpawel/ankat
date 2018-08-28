@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/data/dataworks"
+	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/jmoiron/sqlx"
 )
 

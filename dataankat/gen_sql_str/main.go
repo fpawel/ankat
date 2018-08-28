@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
-	"fmt"
-	"io/ioutil"
 	"strings"
 )
 
@@ -15,13 +15,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	r := regexp.MustCompile(`db_([A-Za-z]+)\.sql`)
 
 	filepath.Walk(pathS, func(path string, f os.FileInfo, _ error) error {
 		if !f.IsDir() {
+
+			packageStr := filepath.Base(filepath.Dir(path))
+
 			xs := r.FindStringSubmatch(f.Name())
 			if len(xs) > 0 {
-				fmt.Println("+",f.Name(), )
+
+
+				fmt.Println("+",f.Name(), "package", packageStr)
 				b,err := ioutil.ReadFile(f.Name())
 				if err != nil {
 					panic(err)
@@ -33,7 +39,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
-				fmt.Fprintln(f, "package main")
+				fmt.Fprintln(f, "package", packageStr)
 				fmt.Fprintln(f, "")
 				fmt.Fprintf(f, "const SQL%s = `\n", strings.Title(s) )
 				f.Write(b)
