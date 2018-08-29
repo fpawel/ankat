@@ -59,7 +59,7 @@ func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
 		}
-		x.db.SetProductValue(x.product.Serial, pv, value)
+		x.db.SetCurrentPartyProductValue(x.product.Serial, pv, value)
 		x.writeInfof("сохранение: %s = %v", s, value)
 	}
 	return nil
@@ -304,9 +304,10 @@ func (x productDevice) writeCoefficientValues(coefficientValues []CoefficientVal
 	return nil
 }
 
-func (x productDevice) writeCoefficientsFrom(coefficient0 ankat.Coefficient, values []float64) error {
-	for i, value := range values {
-		if err := x.writeCoefficientValue(coefficient0+ankat.Coefficient(i), value); err != nil {
+func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
+	x.writeInfof("%v: ввод коэффициентов %s", sect, sect.CoefficientsStr() )
+	for i := sect.Coefficient0(); i < sect.Coefficient0() + sect.CoefficientsCount(); i++ {
+		if err := x.writeCoefficient(i); err != nil {
 			return err
 		}
 	}
@@ -320,12 +321,12 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	if fetch.Canceled(err) {
 		return nil
 	}
-	x.notifyConnected(err, "K%d:=%v", coefficient, value)
+	x.notifyConnected(err, "K%d:=%v", coefficient, float6(value) )
 	if err == nil {
-		x.db.SetCoefficientValue(x.product.Serial, coefficient, value)
+		x.db.SetCoefficientValue(x.product.Serial, coefficient, float6(value))
 		x.writeInfof("K%d:=%v", coefficient, value)
 	} else {
-		x.writeErrorf("запись K%d:=%v: %v", coefficient, value, err)
+		x.writeErrorf("запись K%d:=%v: %v", coefficient, float6(value), err)
 	}
 	for _, a := range x.db.Coefficients() {
 		if a.Coefficient == coefficient {

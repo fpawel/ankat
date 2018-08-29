@@ -8,10 +8,18 @@ import (
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/modbus"
+	"github.com/fpawel/numeth"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"time"
 )
+
+
+type interpolateChanSect = struct {
+	sect ankat.Sect
+	interpolateFunc func(ankat.ProductSerial, ankat.AnkatChan) ([]float64, []numeth.Coordinate, error)
+}
+type interpolateChanSectFunc func(ankat.AnkatChan) interpolateChanSect
 
 func (x app) runWork(ordinal int, w uiworks.Work) {
 	x.uiWorks.Perform(ordinal, w, func() {
@@ -312,4 +320,16 @@ func (x app) holdTemperature(temperature float64) error {
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)
+}
+
+func (x app) interpolateChanSect( ankatChannel ankat.AnkatChan, cs interpolateChanSect) error {
+	x.doEachProductData( func(p productData) {
+		values, xs, err := cs.interpolateFunc(p.product.Serial, ankatChannel)
+		if err != nil {
+			p.writeErrorf("расчёт %v не удался: %v", cs.sect, err )
+		} else {
+			p.writeInfof("расчёт %v: %v: %v", cs.sect, xs, values)
+		}
+	})
+	return nil
 }

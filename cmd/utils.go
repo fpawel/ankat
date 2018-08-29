@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 )
 
@@ -26,4 +27,8 @@ func mustParseInt64(b []byte) int64 {
 		panic(err.Error() + ": " + string(b))
 	}
 	return v
+}
+
+func float6(x float64) float64{
+	return math.Round(x * 1000000.) / 1000000.
 }

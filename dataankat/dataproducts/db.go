@@ -78,7 +78,7 @@ func (x DBProducts) CurrentPartyProductValue(serial ankat.ProductSerial, p ankat
 	return x.ProductValue(x.CurrentPartyID(), serial, p)
 }
 
-func (x DBProducts) SetProductValue(serial ankat.ProductSerial, p ankat.ProductVar, value float64) {
+func (x DBProducts) SetCurrentPartyProductValue(serial ankat.ProductSerial, p ankat.ProductVar, value float64) {
 	x.DB.MustExec(`
 INSERT OR REPLACE INTO product_value (party_id, product_serial, section, point, var, value)
 VALUES ((SELECT * FROM current_party_id), ?, ?, ?, ?, ?); `, serial, p.Sect, p.Point, p.Var, value)
@@ -97,10 +97,10 @@ SELECT value FROM current_party_var_value WHERE var=?;`, name)
 	return
 }
 
-func (x DBProducts) ConcentrationChannels() (xs []ankat.ConcentrationChannel){
-	xs = append(xs, ankat.ConcentrationChannel1)
+func (x DBProducts) AnkatChannels() (xs []ankat.AnkatChan){
+	xs = append(xs, ankat.Chan1)
 	if x.IsTwoConcentrationChannels() {
-		xs = append(xs, ankat.ConcentrationChannel2)
+		xs = append(xs, ankat.Chan2)
 	}
 	return
 }

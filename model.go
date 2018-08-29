@@ -19,6 +19,7 @@ type Coefficient int
 type SectInfo struct {
 	What string
 	Coefficient0 Coefficient
+	CoefficientsCount Coefficient
 }
 
 type ProductVar struct {
@@ -82,12 +83,21 @@ const (
 	Var3Ch2 Var = 692
 )
 
+
 func (x Sect) Description() string {
 	return sectInfo[x].What
 }
 
 func (x Sect) Coefficient0() Coefficient {
 	return sectInfo[x].Coefficient0
+}
+
+func (x Sect) CoefficientsCount() Coefficient {
+	return sectInfo[x].CoefficientsCount
+}
+
+func (x Sect) CoefficientsStr() string{
+	return fmt.Sprintf("%d...%d", x.Coefficient0(), x.Coefficient0() + x.CoefficientsCount() -1)
 }
 
 func Sects() (xs []Sect) {
@@ -115,12 +125,13 @@ func (x Sect) PointDescription(point Point) string {
 
 
 var sectInfo = map[Sect]SectInfo{
-	Lin1: { "линеаризация канала 1", 23},
-	Lin2: {"линеаризация канала 2", 33},
-	T01: { "термокомпенсаци начала шкалы канала 1", 27},
-	TK1: { "термокомпенсаци конца шкалы канала 1", 30},
-	T02: { "термокомпенсаци начала шкалы канала 1", 37},
-	TK2: { "термокомпенсаци конца шкалы канала 1", 40},
+	Lin1: { "линеаризация канала 1", 23, 4},
+	Lin2: {"линеаризация канала 2", 33, 4},
+	T01: { "термокомпенсаци начала шкалы канала 1", 27, 3},
+	TK1: { "термокомпенсаци конца шкалы канала 1", 30, 3},
+	T02: { "термокомпенсаци начала шкалы канала 1", 37, 3},
+	TK2: { "термокомпенсаци конца шкалы канала 1", 40, 3},
+	PT:{"термокомпенсаци давления",45, 3},
 
 }
 

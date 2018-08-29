@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/numeth"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
-	"strings"
+	"math"
 	"time"
 )
 
@@ -122,12 +121,13 @@ func (x app) mainWork() (result uiworks.Work) {
 			return nil
 		}),
 		x.workSaveCalculateLinSourceValues(),
+		x.workInterpolateChanSect("Линеаризация", func(channel ankat.AnkatChan) interpolateChanSect {
+			return interpolateChanSect{
+				channel.Lin(),
+				x.db.InterpolateLin,
+			}
+		}),
 
-	)
-
-	x.addWorkCalculateAndWriteLin(&result)
-
-	result.AddChildren(
 		x.workTemperaturePoint("низкая температура", func() float64 {
 			return x.db.CurrentPartyValue("t-")
 		}, 0),
@@ -135,31 +135,78 @@ func (x app) mainWork() (result uiworks.Work) {
 			return x.db.CurrentPartyValue("t+")
 		}, 2),
 		x.workTemperaturePoint("НКУ", t20gc, 1),
+
+		x.workInterpolateChanSect("Термокомпенсация нуля шкалы", func(channel ankat.AnkatChan) interpolateChanSect {
+			return interpolateChanSect{
+				sect:            channel.T0(),
+				interpolateFunc: x.db.InterpolateT0,
+			}
+		}),
+
+		x.workInterpolateChanSect("Термокомпенсация конца шкалы", func(channel ankat.AnkatChan) interpolateChanSect {
+			return interpolateChanSect{
+				sect:            channel.TK(),
+				interpolateFunc: x.db.InterpolateTK,
+			}
+		}),
+
+
 	)
 
-	x.addWorkCalculateAndWriteT0(&result)
-	x.addWorkCalculateAndWriteTK(&result)
-
-
-	return result
+	return
 }
 
-func (x *app) workTemperaturePoint(what string, temperature func () float64, point ankat.Point) (r uiworks.Work) {
+func (x *app) workInterpolateChanSect(what string, ccs interpolateChanSectFunc) (result uiworks.Work) {
 
-	workSave := func(gas ankat.GasCode, vars []ankat.ProductVar ) uiworks.Work{
-		for i := range  vars {
+	result = uiworks.L(what)
+
+	for _, ankatChan := range x.db.AnkatChannels() {
+		concentrationChannel := ankatChan
+		cs := ccs(concentrationChannel)
+
+		fstr := func (s string) string{
+			return fmt.Sprintf("%s: %s к-тов %s, канал %d", cs.sect, s, cs.sect.CoefficientsStr(), ankatChan)
+		}
+
+		result.AddChild(uiworks.S(fstr("расчёт"), func() error {
+			x.doEachProductData(func(p productData) {
+				values, xs, err := cs.interpolateFunc(p.product.Serial, concentrationChannel)
+				if err != nil {
+					p.writeErrorf("расчёт %v не удался: %v", cs.sect, err)
+				} else {
+					for  i := range values{
+						values[i] = math.Round(values[i] * 1000000.) / 1000000.
+					}
+					p.writeInfof("расчёт %v: %v: [%s] = [%v]", cs.sect, xs, cs.sect.CoefficientsStr(), values)
+				}
+			})
+			return nil
+		}))
+		result.AddChild(uiworks.S(fstr("ввод"), func() error {
+			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
+				return p.writeSectCoefficients(cs.sect)
+			})
+			return nil
+		}))
+	}
+	return
+}
+
+func (x *app) workTemperaturePoint(what string, temperature func() float64, point ankat.Point) (r uiworks.Work) {
+
+	workSave := func(gas ankat.GasCode, vars []ankat.ProductVar) uiworks.Work {
+		for i := range vars {
 			vars[i].Point = point
 		}
 		s := ""
-		for _,a := range vars {
+		for _, a := range vars {
 			if s != "" {
 				s += ", "
 			}
-			s += fmt.Sprintf( "%s[%d]%s", a.Sect, a.Point, x.db.VarName(a.Var))
+			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.db.VarName(a.Var))
 		}
 
-
-		return x.workEachProduct( fmt.Sprintf("Снятие %s: %s: %s",  what,
+		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s: %s", what,
 			gas.Description(), s), func(p productDevice) error {
 			return p.fixVarsValues(vars)
 		})
@@ -193,7 +240,7 @@ func (x *app) workTemperaturePoint(what string, temperature func () float64, poi
 	r.Children = append(r.Children,
 		x.workHoldTemperature(what, temperature),
 		x.workBlowGas(ankat.GasNitrogen),
-		workSave( ankat.GasNitrogen, nitrogenVars),
+		workSave(ankat.GasNitrogen, nitrogenVars),
 		x.workBlowGas(ankat.GasChan1End),
 		workSave(ankat.GasChan1End, []ankat.ProductVar{
 			{
@@ -206,80 +253,20 @@ func (x *app) workTemperaturePoint(what string, temperature func () float64, poi
 	)
 	if x.db.IsTwoConcentrationChannels() {
 		r.Children = append(r.Children,
-		x.workBlowGas(ankat.GasChan2End),
-		workSave(ankat.GasChan2End, []ankat.ProductVar{
-			{
-				Sect: ankat.TK2, Var: ankat.TppCh2,
-			},
-			{
-				Sect: ankat.TK2, Var: ankat.Var2Ch2,
-			},
-		}),)
+			x.workBlowGas(ankat.GasChan2End),
+			workSave(ankat.GasChan2End, []ankat.ProductVar{
+				{
+					Sect: ankat.TK2, Var: ankat.TppCh2,
+				},
+				{
+					Sect: ankat.TK2, Var: ankat.Var2Ch2,
+				},
+			}))
 	}
 	r.Children = append(r.Children, x.workBlowGas(ankat.GasNitrogen))
 
 	return
 }
-
-
-type calcSect struct {
-	calcFunc func(p productData) ([]float64, []numeth.Coordinate, error)
-	sect ankat.Sect
-}
-
-type concentrationChanCalcSectFunc func(ankat.ConcentrationChannel) calcSect
-
-func (x *app) addWorkCalculateAndWriteCoefficientsSect(parentWork *uiworks.Work, what string, ccs concentrationChanCalcSectFunc) {
-	for _,c := range x.db.ConcentrationChannels(){
-		cs := ccs(c)
-		parentWork.AddChild( uiworks.S(what + ": " + strings.ToLower(c.What()), func() error {
-			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
-				values, xs, err := cs.calcFunc(p.productData)
-				if err != nil {
-					return errors.Wrapf(err, "расчёт %v не удался", cs.sect )
-				}
-				p.writeInfof("расчёт %v: %v: %v", cs.sect, xs, values)
-				return p.writeCoefficientsFrom(cs.sect.Coefficient0(), values)
-			})
-		}))
-	}
-}
-
-func (x *app) addWorkCalculateAndWriteLin(parentWork *uiworks.Work)  {
-
-	x.addWorkCalculateAndWriteCoefficientsSect( parentWork, "Линеаризация", func(channel ankat.ConcentrationChannel) calcSect {
-		return calcSect{
-			sect:channel.Lin(),
-			calcFunc: func(p productData) ([]float64, []numeth.Coordinate, error) {
-				return p.calculateLin(channel)
-			},
-		}
-	})
-}
-
-func (x *app) addWorkCalculateAndWriteT0(parentWork *uiworks.Work)  {
-	x.addWorkCalculateAndWriteCoefficientsSect( parentWork, "Термокомпенсация нуля шкалы", func(channel ankat.ConcentrationChannel) calcSect {
-		return calcSect{
-			sect:channel.T0(),
-			calcFunc: func(p productData) ([]float64, []numeth.Coordinate, error) {
-				return p.calculateT0(channel)
-			},
-		}
-	})
-}
-
-func (x *app) addWorkCalculateAndWriteTK(parentWork *uiworks.Work)  {
-	x.addWorkCalculateAndWriteCoefficientsSect( parentWork, "Термокомпенсация конца шкалы", func(channel ankat.ConcentrationChannel) calcSect {
-		return calcSect{
-			sect:channel.TK(),
-			calcFunc: func(p productData) ([]float64, []numeth.Coordinate, error) {
-				return p.calculateTK(channel)
-			},
-		}
-	})
-}
-
-
 
 func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
 	r.Name = "Снятие линеаризации"

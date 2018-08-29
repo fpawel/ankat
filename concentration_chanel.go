@@ -2,37 +2,37 @@ package ankat
 
 import "fmt"
 
-type ConcentrationChannel int
+type AnkatChan int
 
 const (
-	ConcentrationChannel1 ConcentrationChannel = 1
-	ConcentrationChannel2 ConcentrationChannel = 2
+	Chan1 AnkatChan = 1
+	Chan2 AnkatChan = 2
 )
 
-func MustValidConcentrationChannel(c ConcentrationChannel) {
-	if c != ConcentrationChannel1 && c != ConcentrationChannel2{
+func MustValidChan(c AnkatChan) {
+	if c != Chan1 && c != Chan2 {
 		panic(fmt.Sprintf("канал концентрации должен быть 1 или 2: %d", c))
 
 	}
 }
 
-func (x ConcentrationChannel) What() string {
-	MustValidConcentrationChannel(x)
+func (x AnkatChan) What() string {
+	MustValidChan(x)
 	return fmt.Sprintf("Канал %d", x)
 }
 
-func (x ConcentrationChannel) Lin() Sect {
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1 {
+func (x AnkatChan) Lin() Sect {
+	MustValidChan(x)
+	if x == Chan1 {
 		return Lin1
 	} else {
 		return Lin2
 	}
 }
 
-func (x ConcentrationChannel) LinPoints(isCO2 bool) (xs []LinPoint) {
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1 {
+func (x AnkatChan) LinPoints(isCO2 bool) (xs []LinPoint) {
+	MustValidChan(x)
+	if x == Chan1 {
 
 		xs = []LinPoint{
 			{
@@ -72,45 +72,45 @@ func (x ConcentrationChannel) LinPoints(isCO2 bool) (xs []LinPoint) {
 	return
 }
 
-func (x ConcentrationChannel) T0() Sect{
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1  {
+func (x AnkatChan) T0() Sect{
+	MustValidChan(x)
+	if x == Chan1 {
 		return T01
 	} else {
 		return T02
 	}
 }
 
-func (x ConcentrationChannel) TK() Sect{
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1  {
+func (x AnkatChan) TK() Sect{
+	MustValidChan(x)
+	if x == Chan1 {
 		return TK1
 	} else {
 		return TK2
 	}
 }
 
-func (x ConcentrationChannel) CoutCh() Var{
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1  {
+func (x AnkatChan) CoutCh() Var{
+	MustValidChan(x)
+	if x == Chan1 {
 		return CoutCh1
 	} else {
 		return CoutCh2
 	}
 }
 
-func (x ConcentrationChannel) Var2() Var{
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1  {
+func (x AnkatChan) Var2() Var{
+	MustValidChan(x)
+	if x == Chan1 {
 		return Var2Ch1
 	} else {
 		return Var2Ch2
 	}
 }
 
-func (x ConcentrationChannel) Tpp() Var{
-	MustValidConcentrationChannel(x)
-	if x == ConcentrationChannel1  {
+func (x AnkatChan) Tpp() Var{
+	MustValidChan(x)
+	if x == Chan1 {
 		return TppCh1
 	} else {
 		return TppCh2

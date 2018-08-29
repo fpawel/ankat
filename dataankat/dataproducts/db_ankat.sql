@@ -263,6 +263,25 @@ CREATE VIEW IF NOT EXISTS last_work_log AS
   INNER JOIN work_log b ON a.work_id = b.work_id
   ORDER BY b.created_at;
 
+
+CREATE VIEW IF NOT EXISTS work_info AS
+  SELECT w.work_id, w.parent_work_id, w.created_at, w.work_index, w.work_name,
+         EXISTS(SELECT *
+                FROM work ww
+                WHERE ww.parent_work_id = w.work_id) AS has_children,
+         ( WITH RECURSIVE a(work_id, parent_work_id) AS
+              (   SELECT work_id, parent_work_id
+                  FROM work b
+                  WHERE b.work_id = w.work_id OR b.parent_work_id = w.work_id
+                 UNION
+                  SELECT w.work_id, w.parent_work_id
+                  FROM a INNER JOIN work w ON w.parent_work_id = a.work_id
+              ) SELECT EXISTS(SELECT *
+                              FROM a INNER JOIN work_log ON a.work_id = work_log.work_id
+                              WHERE work_log.level >= 4)
+         ) AS has_error
+  FROM work w;
+
 CREATE VIEW IF NOT EXISTS current_party_var_value AS
   SELECT party_var.var AS var,
          party_var.def_val AS def_val,
