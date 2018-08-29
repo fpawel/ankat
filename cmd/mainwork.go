@@ -4,11 +4,20 @@ import (
 	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/ui/uiworks"
+	"github.com/fpawel/numeth"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"math"
 	"time"
 )
+
+
+type interpolateChanSect = struct {
+	sect ankat.Sect
+	interpolateFunc func(ankat.ProductSerial, ankat.AnkatChan) ([]float64, []numeth.Coordinate, error)
+}
+type interpolateChanSectFunc func(ankat.AnkatChan) interpolateChanSect
+type interpolateSectFunc func(ankat.ProductSerial) ([]float64, []numeth.Coordinate, error)
 
 func (x app) mainWork() (result uiworks.Work) {
 	t20gc := func() float64 {
@@ -149,9 +158,43 @@ func (x app) mainWork() (result uiworks.Work) {
 				interpolateFunc: x.db.InterpolateTK,
 			}
 		}),
-
-
 	)
+
+	if x.db.IsPressureSensor(){
+		result.AddChild( x.workInterpolateSect("Термокомпенсация давления", ankat.PT, x.db.InterpolatePT ) )
+	}
+
+	return
+}
+
+func (x *app) workInterpolateSect(what string, sect ankat.Sect, interpolateFunc interpolateSectFunc) (result uiworks.Work) {
+
+	result = uiworks.L(what)
+
+	fstr := func (s string) string{
+		return fmt.Sprintf("%s: %s к-тов %s", sect, s, sect.CoefficientsStr(), )
+	}
+
+	result.AddChild(uiworks.S(fstr("расчёт"), func() error {
+		x.doEachProductData(func(p productData) {
+			values, xs, err := interpolateFunc(p.product.Serial)
+			if err != nil {
+				p.writeErrorf("расчёт %v не удался: %v", sect, err)
+			} else {
+				for  i := range values{
+					values[i] = math.Round(values[i] * 1000000.) / 1000000.
+				}
+				p.writeInfof("расчёт %v: %v: [%s] = [%v]", sect, xs, sect.CoefficientsStr(), values)
+			}
+		})
+		return nil
+	}))
+	result.AddChild(uiworks.S(fstr("ввод"), func() error {
+		return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
+			return p.writeSectCoefficients(sect)
+		})
+		return nil
+	}))
 
 	return
 }
