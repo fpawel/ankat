@@ -1,6 +1,9 @@
 package ankat
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type PartyID int64
 
@@ -118,7 +121,7 @@ func (x Sect) PointDescription(point Point) string {
 	if s, ok := pointSectDescription[SectPoint{x, point}]; ok {
 		return s
 	}
-	return fmt.Sprintf("№%d", point+1)
+	return strconv.Itoa(int(point)+1)
 }
 
 
@@ -182,10 +185,6 @@ func MainVars2() []Var {
 		Var1Ch2,
 		Var3Ch2,
 	}
-}
-
-func (x GasCode) Var() string {
-	return fmt.Sprintf("cgas%d", x)
 }
 
 

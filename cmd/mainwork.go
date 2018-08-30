@@ -84,7 +84,7 @@ func (x app) mainWork() (result uiworks.Work) {
 				return errors.Wrap(err,
 					"не удалось продуть азот")
 			}
-			nitrogenConcentration := x.db.CurrentPartyValue("c_gas1")
+			nitrogenConcentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)
 			if err := x.sendCmd(1, nitrogenConcentration); err != nil {
 				return errors.Wrap(err,
 					"не удалось выполнить команду калибровки начала шкалы канала 1")
@@ -104,7 +104,7 @@ func (x app) mainWork() (result uiworks.Work) {
 				return errors.Wrap(err,
 					"не удалось продуть конец шкалы канала 1")
 			}
-			concentration := x.db.CurrentPartyValue(ankat.GasChan1End.Var())
+			concentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End)
 			if err := x.sendCmd(2, concentration); err != nil {
 				return errors.Wrap(err,
 					"не удалось выполнить команду калибровки чувствительности канала 1")
@@ -114,7 +114,7 @@ func (x app) mainWork() (result uiworks.Work) {
 					return errors.Wrap(err,
 						"не удалось продуть конец шкалы канала 2")
 				}
-				concentration = x.db.CurrentPartyValue(ankat.GasChan2End.Var())
+				concentration = x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End)
 				if err := x.sendCmd(5, concentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки чувствительности канала 2")

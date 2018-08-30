@@ -117,202 +117,256 @@ func StreamParty(qw422016 *qt422016.Writer, p dataproducts.PartyInfo, funcVarNam
         
     </table>
 
-    <h3>Коэффициенты</h3>
-
-    <table class="tab2">
-        <thead>
-            <th>№</th>
-            `)
-	//line party.qtpl:58
-	for _, product := range p.Coefficients.Products() {
-		//line party.qtpl:58
-		qw422016.N().S(`
-                <th>`)
-		//line party.qtpl:59
-		qw422016.N().D(int(product))
-		//line party.qtpl:59
-		qw422016.N().S(`</th>
-            `)
-		//line party.qtpl:60
-	}
-	//line party.qtpl:60
-	qw422016.N().S(`
-        </thead>
-        <tbody>
-            `)
-	//line party.qtpl:63
-	for _, coefficient := range p.Coefficients.Coefficients() {
-		//line party.qtpl:63
-		qw422016.N().S(`       
-                <tr>
-                    <th>`)
-		//line party.qtpl:65
-		qw422016.E().S(fmt.Sprintf("%02d", coefficient))
-		//line party.qtpl:65
-		qw422016.N().S(`</th>                        
-                    `)
-		//line party.qtpl:66
-		for _, product := range p.Coefficients.Products() {
-			//line party.qtpl:66
-			qw422016.N().S(`
-                        <td>`)
-			//line party.qtpl:67
-			qw422016.E().V(p.Coefficients[coefficient][product])
-			//line party.qtpl:67
-			qw422016.N().S(`</td>
-                    `)
-			//line party.qtpl:68
-		}
-		//line party.qtpl:68
-		qw422016.N().S(` 
-                </tr>
-	        `)
-		//line party.qtpl:70
-	}
-	//line party.qtpl:70
-	qw422016.N().S(`
-        </tbody>
-        
-    </table>
-
     `)
-	//line party.qtpl:75
+	//line party.qtpl:53
 	for _, sect := range p.ProductVarValues.Sects() {
-		//line party.qtpl:75
+		//line party.qtpl:53
 		qw422016.N().S(`    
         <h3>`)
-		//line party.qtpl:76
+		//line party.qtpl:54
 		qw422016.E().S(sect.Description())
-		//line party.qtpl:76
+		//line party.qtpl:54
 		qw422016.N().S(`</h3>
         <table class="tab2"> 
             <thead>
                 <tr>
                     <th colspan = "2">Точка</th> 
                     `)
-		//line party.qtpl:81
+		//line party.qtpl:59
 		for _, product := range p.ProductVarValues.Products() {
-			//line party.qtpl:81
+			//line party.qtpl:59
 			qw422016.N().S(`
                         <th>`)
-			//line party.qtpl:82
+			//line party.qtpl:60
 			qw422016.E().V(product)
-			//line party.qtpl:82
+			//line party.qtpl:60
 			qw422016.N().S(`</th>
                     `)
-			//line party.qtpl:83
+			//line party.qtpl:61
 		}
-		//line party.qtpl:83
+		//line party.qtpl:61
 		qw422016.N().S(` 
                 </tr>
             </thead>           
             <tbody>
                 `)
-		//line party.qtpl:87
+		//line party.qtpl:65
 		for _, v := range p.ProductVarValues.Vars() {
-			//line party.qtpl:87
+			//line party.qtpl:65
 			qw422016.N().S(`
                     `)
-			//line party.qtpl:88
+			//line party.qtpl:66
 			for _, pt := range p.ProductVarValues.Points() {
-				//line party.qtpl:88
+				//line party.qtpl:66
 				qw422016.N().S(`
 
                         `)
-				//line party.qtpl:90
+				//line party.qtpl:68
 				if xs, ok := p.ProductVarValues.SectVarPointValues(sect, v, pt); ok {
-					//line party.qtpl:90
+					//line party.qtpl:68
 					qw422016.N().S(`
 			                <tr>
                                 <th style="text-align:left;" >`)
-					//line party.qtpl:92
+					//line party.qtpl:70
 					qw422016.E().S(sect.PointDescription(pt))
-					//line party.qtpl:92
+					//line party.qtpl:70
 					qw422016.N().S(`</th> 
                                 <th style="text-align:right;" >`)
-					//line party.qtpl:93
+					//line party.qtpl:71
 					qw422016.E().S(fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)))
-					//line party.qtpl:93
+					//line party.qtpl:71
 					qw422016.N().S(`</th>
                                 `)
-					//line party.qtpl:94
+					//line party.qtpl:72
 					for _, product := range p.ProductVarValues.Products() {
-						//line party.qtpl:94
+						//line party.qtpl:72
 						qw422016.N().S(`
                                     <td style="text-align:left;">
                                         `)
-						//line party.qtpl:96
+						//line party.qtpl:74
 						if value, ok := xs[product]; ok {
-							//line party.qtpl:96
+							//line party.qtpl:74
 							qw422016.N().S(`
                                             `)
-							//line party.qtpl:97
+							//line party.qtpl:75
 							qw422016.N().F(value)
-							//line party.qtpl:97
+							//line party.qtpl:75
 							qw422016.N().S(`
                                         `)
-							//line party.qtpl:98
+							//line party.qtpl:76
 						}
-						//line party.qtpl:98
+						//line party.qtpl:76
 						qw422016.N().S(`
                                     </td>
                                 `)
-						//line party.qtpl:100
+						//line party.qtpl:78
 					}
-					//line party.qtpl:100
+					//line party.qtpl:78
 					qw422016.N().S(` 
                             </tr>
 			            `)
-					//line party.qtpl:102
+					//line party.qtpl:80
 				}
-				//line party.qtpl:102
+				//line party.qtpl:80
 				qw422016.N().S(`
                     `)
-				//line party.qtpl:103
+				//line party.qtpl:81
 			}
-			//line party.qtpl:103
+			//line party.qtpl:81
 			qw422016.N().S(`
                 `)
-			//line party.qtpl:104
+			//line party.qtpl:82
 		}
-		//line party.qtpl:104
+		//line party.qtpl:82
 		qw422016.N().S(`
             </tbody>
         </table>        
     `)
-		//line party.qtpl:107
+		//line party.qtpl:85
 	}
-	//line party.qtpl:107
+	//line party.qtpl:85
 	qw422016.N().S(`   
+
+    `)
+	//line party.qtpl:87
+	if len(p.Coefficients) > 0 {
+		//line party.qtpl:87
+		qw422016.N().S(`
+        `)
+		//line party.qtpl:88
+		StreamCoefficients(qw422016, p)
+		//line party.qtpl:88
+		qw422016.N().S(`
+
+    `)
+		//line party.qtpl:90
+	}
+	//line party.qtpl:90
+	qw422016.N().S(` 
+
+    
 
     </body>
 </html>
 `)
-//line party.qtpl:111
+//line party.qtpl:96
 }
 
-//line party.qtpl:111
+//line party.qtpl:96
 func WriteParty(qq422016 qtio422016.Writer, p dataproducts.PartyInfo, funcVarName func(ankat.Var) string) {
-	//line party.qtpl:111
+	//line party.qtpl:96
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line party.qtpl:111
+	//line party.qtpl:96
 	StreamParty(qw422016, p, funcVarName)
-	//line party.qtpl:111
+	//line party.qtpl:96
 	qt422016.ReleaseWriter(qw422016)
-//line party.qtpl:111
+//line party.qtpl:96
 }
 
-//line party.qtpl:111
+//line party.qtpl:96
 func Party(p dataproducts.PartyInfo, funcVarName func(ankat.Var) string) string {
-	//line party.qtpl:111
+	//line party.qtpl:96
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line party.qtpl:111
+	//line party.qtpl:96
 	WriteParty(qb422016, p, funcVarName)
-	//line party.qtpl:111
+	//line party.qtpl:96
 	qs422016 := string(qb422016.B)
-	//line party.qtpl:111
+	//line party.qtpl:96
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line party.qtpl:111
+	//line party.qtpl:96
 	return qs422016
-//line party.qtpl:111
+//line party.qtpl:96
+}
+
+//line party.qtpl:98
+func StreamCoefficients(qw422016 *qt422016.Writer, p dataproducts.PartyInfo) {
+	//line party.qtpl:98
+	qw422016.N().S(`
+
+    <h3>Коэффициенты</h3>
+
+    <table class="tab2">
+        <thead>
+            <th>№</th>
+            `)
+	//line party.qtpl:105
+	for _, product := range p.Coefficients.Products() {
+		//line party.qtpl:105
+		qw422016.N().S(`
+                <th>`)
+		//line party.qtpl:106
+		qw422016.N().D(int(product))
+		//line party.qtpl:106
+		qw422016.N().S(`</th>
+            `)
+		//line party.qtpl:107
+	}
+	//line party.qtpl:107
+	qw422016.N().S(`
+        </thead>
+        <tbody>
+            `)
+	//line party.qtpl:110
+	for _, coefficient := range p.Coefficients.Coefficients() {
+		//line party.qtpl:110
+		qw422016.N().S(`       
+                <tr>
+                    <th>`)
+		//line party.qtpl:112
+		qw422016.E().S(fmt.Sprintf("%02d", coefficient))
+		//line party.qtpl:112
+		qw422016.N().S(`</th>                        
+                    `)
+		//line party.qtpl:113
+		for _, product := range p.Coefficients.Products() {
+			//line party.qtpl:113
+			qw422016.N().S(`
+                        <td>`)
+			//line party.qtpl:114
+			qw422016.E().V(formatFloat6(p.Coefficients[coefficient][product]))
+			//line party.qtpl:114
+			qw422016.N().S(`</td>
+                    `)
+			//line party.qtpl:115
+		}
+		//line party.qtpl:115
+		qw422016.N().S(` 
+                </tr>
+	        `)
+		//line party.qtpl:117
+	}
+	//line party.qtpl:117
+	qw422016.N().S(`
+        </tbody>
+        
+    </table>
+
+`)
+//line party.qtpl:122
+}
+
+//line party.qtpl:122
+func WriteCoefficients(qq422016 qtio422016.Writer, p dataproducts.PartyInfo) {
+	//line party.qtpl:122
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line party.qtpl:122
+	StreamCoefficients(qw422016, p)
+	//line party.qtpl:122
+	qt422016.ReleaseWriter(qw422016)
+//line party.qtpl:122
+}
+
+//line party.qtpl:122
+func Coefficients(p dataproducts.PartyInfo) string {
+	//line party.qtpl:122
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line party.qtpl:122
+	WriteCoefficients(qb422016, p)
+	//line party.qtpl:122
+	qs422016 := string(qb422016.B)
+	//line party.qtpl:122
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line party.qtpl:122
+	return qs422016
+//line party.qtpl:122
 }

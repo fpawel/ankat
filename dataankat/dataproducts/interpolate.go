@@ -33,7 +33,7 @@ func (x DBProducts) InterpolateLin(productSerial ankat.ProductSerial, chanel ank
 	points := chanel.LinPoints(x.IsCO2())
 	xs = make([]numeth.Coordinate, len(points))
 	for i, pt := range points {
-		xs[i].Y = x.CurrentPartyValue(pt.GasCode.Var())
+		xs[i].Y = x.CurrentPartyVerificationGasConcentration(pt.GasCode)
 		xs[i].X, err  = x.currentProductValue(productSerial, pt.ProductVar)
 		if err != nil {
 			return

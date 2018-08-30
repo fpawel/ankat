@@ -1,4 +1,4 @@
-{% import "github.com/fpawel/ankat/data/dataproducts" %}
+{% import "github.com/fpawel/ankat/dataankat/dataproducts" %}
 {% import "github.com/fpawel/ankat" %}
 {% import "fmt" %}
 
@@ -50,28 +50,6 @@
         
     </table>
 
-    <h3>Коэффициенты</h3>
-
-    <table class="tab2">
-        <thead>
-            <th>№</th>
-            {% for _,product := range p.Coefficients.Products() %}
-                <th>{%d int(product) %}</th>
-            {% endfor %}
-        </thead>
-        <tbody>
-            {% for _,coefficient := range p.Coefficients.Coefficients() %}       
-                <tr>
-                    <th>{%s fmt.Sprintf("%02d", coefficient) %}</th>                        
-                    {% for _,product := range p.Coefficients.Products() %}
-                        <td>{%v p.Coefficients[coefficient][product] %}</td>
-                    {% endfor %} 
-                </tr>
-	        {% endfor %}
-        </tbody>
-        
-    </table>
-
     {% for _,sect := range p.ProductVarValues.Sects() %}    
         <h3>{%s sect.Description() %}</h3>
         <table class="tab2"> 
@@ -106,6 +84,39 @@
         </table>        
     {% endfor %}   
 
+    {% if len(p.Coefficients) > 0 %}
+        {%= Coefficients(p) %}
+
+    {% endif %} 
+
+    
+
     </body>
 </html>
+{% endfunc %}
+
+{% func Coefficients(p dataproducts.PartyInfo ) %}
+
+    <h3>Коэффициенты</h3>
+
+    <table class="tab2">
+        <thead>
+            <th>№</th>
+            {% for _,product := range p.Coefficients.Products() %}
+                <th>{%d int(product) %}</th>
+            {% endfor %}
+        </thead>
+        <tbody>
+            {% for _,coefficient := range p.Coefficients.Coefficients() %}       
+                <tr>
+                    <th>{%s fmt.Sprintf("%02d", coefficient) %}</th>                        
+                    {% for _,product := range p.Coefficients.Products() %}
+                        <td>{%v formatFloat6(p.Coefficients[coefficient][product] )  %}</td>
+                    {% endfor %} 
+                </tr>
+	        {% endfor %}
+        </tbody>
+        
+    </table>
+
 {% endfunc %}

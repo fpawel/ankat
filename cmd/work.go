@@ -72,7 +72,7 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
-		dataworks.AddRootWork(x.db.DBProducts.DB, "опрос")
+		//dataworks.AddRootWork(x.db.DBProducts.DB, "опрос")
 		x.db.CreateNewSeries()
 		defer x.db.DeleteLastEmptySeries()
 

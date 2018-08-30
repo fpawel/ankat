@@ -252,3 +252,6 @@ func (x DBProducts) CurrentPartyInfo() PartyInfo {
 	return x.PartyInfo(x.CurrentPartyID())
 }
 
+func (x DBProducts) CurrentPartyVerificationGasConcentration(gas ankat.GasCode) float64 {
+	return x.CurrentPartyValue(fmt.Sprintf("cgas%d", gas))
+}

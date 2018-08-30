@@ -138,7 +138,6 @@ func runApp() {
 	x.delphiApp.Handle("PARTY_INFO", func(bytes []byte) interface {} {
 		partyID := ankat.PartyID(mustParseInt64(bytes))
 		str := view.Party( x.db.PartyInfo(partyID), x.db.VarName )
-
 		return str
 	})
 
