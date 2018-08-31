@@ -7,7 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-//go:generate go run ./../gen_sql_str/main.go
+
 
 type Product struct {
 	Checked bool                `db:"checked"`
@@ -95,6 +95,55 @@ func (x DBProducts) CurrentPartyValueStr(name string) (value string) {
 	dbutils.MustGet(x.DB, &value, `
 SELECT value FROM current_party_var_value WHERE var=?;`, name)
 	return
+}
+
+func (x DBProducts) CurrentPartyScaleCode(c ankat.AnkatChan) float64{
+	scale := x.CurrentPartyValue( fmt.Sprintf("scale%d", c))
+	switch scale {
+	case 2:
+		return 2
+	case 5:
+		return 6
+	case 10:
+		return 7
+	case 100:
+		return 21
+	}
+	panic(fmt.Sprintf("unknown scale: %v: %v", c, scale ))
+}
+
+func (x DBProducts) CurrentPartyUnitsCode(c ankat.AnkatChan) float64{
+	units := x.CurrentPartyValueStr( fmt.Sprintf("units%d", c))
+	switch units {
+	case "объемная доля, %":
+		return 3
+	case "%, НКПР":
+		return 4
+	}
+	panic(fmt.Sprintf("unknown units: %v, %v", c, units ))
+}
+
+func (x DBProducts) CurrentPartyGasTypeCode(c ankat.AnkatChan) float64{
+	gas := x.CurrentPartyValueStr( fmt.Sprintf("gas%d", c))
+	scale := x.CurrentPartyValue(fmt.Sprintf("scale%d", c))
+	switch gas {
+	case "CH₄":
+		return 16
+	case "C₃H₈":
+		return 14
+	case "∑CH":
+		return 15
+	case "CO₂":
+		switch scale {
+		case 2:
+			return 11
+		case 5:
+			return 12
+		case 10:
+			return 13
+		}
+	}
+	panic(fmt.Sprintf("unknown gas and scale: %v: %v, %v", c, gas, scale ))
 }
 
 func (x DBProducts) AnkatChannels() (xs []ankat.AnkatChan){

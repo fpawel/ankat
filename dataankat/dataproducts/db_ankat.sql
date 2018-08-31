@@ -124,15 +124,16 @@ CREATE TABLE IF NOT EXISTS product_value (
 );
 
 CREATE TABLE IF NOT EXISTS main_error_source (
-  party_id       INTEGER NOT NULL,
-  product_serial REAL    NOT NULL,
+  party_id       INTEGER                 NOT NULL,
+  product_serial REAL                    NOT NULL,
 
-  gas CHECK (gas IN ('cgas1', 'cgas2', 'cgas3', 'cgas4', 'cgas5', 'cgas6')),
-  temp CHECK (temp IN ('L', 'N', 'H')),
+  sensor CHECK (sensor IN (1, 2))        NOT NULL,
+  scale CHECK (scale IN ('B', 'M', 'E')) NOT NULL,
+  temp CHECK (temp IN ('L', 'N', 'H'))   NOT NULL,
 
-  value          REAL    NOT NULL CHECK (typeof(value) IN ('real', 'integer')),
+  value          REAL                    NOT NULL CHECK (typeof(value) IN ('real', 'integer')),
 
-  UNIQUE (party_id, product_serial, gas, temp),
+  UNIQUE (party_id, product_serial, sensor, scale, temp),
 
   FOREIGN KEY (party_id, product_serial)
   REFERENCES product (party_id, product_serial)
@@ -140,25 +141,58 @@ CREATE TABLE IF NOT EXISTS main_error_source (
 );
 
 CREATE VIEW IF NOT EXISTS main_error1 AS
-  SELECT *, (SELECT value FROM party_value WHERE a.party_id = party_id
-                                             AND var = a.gas) AS nominal,
-            (CASE (SELECT value
-                   FROM party_value
-                   WHERE a.party_id = party_id
-                     AND var = (CASE
-                                  WHEN a.gas IN ('cgas1', 'cgas2', 'cgas3', 'cgas4') THEN 'gas1'
-                                  ELSE 'gas2' END
-                       ))
-               WHEN 'CO₂' THEN 0.2
-               ELSE 2.5 END)                                  AS klimit
+  SELECT *, (SELECT value
+             FROM party_value
+             WHERE a.party_id = party_id
+               AND var = (SELECT CASE a.sensor
+                                   WHEN 1 THEN CASE a.scale
+                                                 WHEN 'B' THEN 'cgas1'
+                                                 WHEN 'M' THEN 'cgas2'
+                                                 WHEN 'E' THEN 'cgas4' END
+                                   WHEN 2 THEN CASE a.scale
+                                                 WHEN 'B' THEN 'cgas1'
+                                                 WHEN 'M' THEN 'cgas5'
+                                                 WHEN 'E' THEN 'cgas6' END END)) AS nominal,
+            (SELECT value
+             FROM party_value
+             WHERE a.party_id = party_id
+               AND var = (SELECT CASE a.sensor
+                                   WHEN 1 THEN 'units2'
+                                   WHEN 2 THEN 'units2' END))                    AS units,
+            (SELECT value
+             FROM party_value
+             WHERE a.party_id = party_id
+               AND var = (SELECT CASE a.sensor
+                                   WHEN 1 THEN 'gas1'
+                                   WHEN 2 THEN 'gas2' END))                      AS gas,
+            (SELECT value
+             FROM party_value
+             WHERE a.party_id = party_id
+               AND var = (SELECT CASE a.sensor
+                                   WHEN 1 THEN 'scale1'
+                                   WHEN 2 THEN 'scale2' END))                    AS scale_value
   FROM main_error_source a;
 
 CREATE VIEW IF NOT EXISTS main_error2 AS
-  SELECT *, (value - nominal) AS absolute_error, klimit + 0.05 * abs(nominal) AS error_limit
+  SELECT *, (value - nominal) AS absolute_error,
+            (
+                CASE units
+                  WHEN '%, НКПР' THEN 5
+                  WHEN 'объемная доля, %' THEN CASE gas
+                                                 WHEN 'CH₄' THEN 0.22
+                                                 WHEN 'C₃H₈' THEN 0.05
+                                                 WHEN 'CO₂' THEN CASE scale_value
+                                                                   WHEN 2. THEN 0.1
+                                                                   WHEN 5. THEN 0.25
+                                                                   WHEN 10. THEN 0.5
+                        END
+                    END
+                    END)      AS absolute_error_limit
   FROM main_error1;
 
 CREATE VIEW IF NOT EXISTS main_error AS
-  SELECT *, abs(absolute_error) < error_limit AS ok, 100 * abs(absolute_error) / error_limit AS percent_from_limit
+  SELECT *, abs(absolute_error) < absolute_error_limit       AS ok,
+            100 * abs(absolute_error) / absolute_error_limit AS percent_from_absolute_error_limit
   FROM main_error2;
 
 CREATE VIEW IF NOT EXISTS party_info AS
@@ -194,18 +228,17 @@ VALUES (0, 'product_type_number', 'номер исполнения', 'integer', 
        (3, 'gas2', 'газ к.2', 'text', NULL, NULL, 'CH₄'),
        (4, 'scale1', 'шкала к.1', 'real', 0, NULL, 2),
        (5, 'scale2', 'шкала к.2', 'real', 0, NULL, 2),
-       (6, 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
-       (7, 'cgas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
-       (8, 'cgas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
-       (9, 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
-       (10, 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
-       (11, 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2),
-       (12, 't-', 'T-,"С', 'real', NULL, NULL, -30),
-       (13, 't+', 'T+,"С', 'real', NULL, NULL, 45);
-
-INSERT
-OR IGNORE INTO party_var (sort_order, var, name, type, def_val)
-VALUES (14, 'pressure_sensor', 'Датчик давления', 'bool', 0);
+       (6, 'units1', 'ед.изм. к.1', 'text', NULL, NULL, '%, НКПР'),
+       (7, 'units2', 'ед.изм. к.2', 'text', NULL, NULL, '%, НКПР'),
+       (8, 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
+       (9, 'cgas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
+       (10, 'cgas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
+       (11, 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
+       (12, 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
+       (13, 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2),
+       (14, 't-', 'T-,"С', 'real', NULL, NULL, -30),
+       (15, 't+', 'T+,"С', 'real', NULL, NULL, 45),
+       (16, 'pressure_sensor', 'Датчик давления', 'bool', NULL, NULL, 0);
 
 INSERT
 OR IGNORE INTO read_var (var, name, description)
@@ -314,7 +347,6 @@ CREATE VIEW IF NOT EXISTS last_work_log AS
   FROM last_work a
          INNER JOIN work_log b ON a.work_id = b.work_id
   ORDER BY b.created_at;
-
 
 CREATE VIEW IF NOT EXISTS work_info AS
   SELECT w.work_id,
@@ -435,7 +467,6 @@ CREATE VIEW IF NOT EXISTS coefficient_enumerated AS
          LEFT JOIN coefficient AS b
   WHERE a.coefficient_id >= b.coefficient_id
   GROUP BY a.coefficient_id;
-
 
 CREATE TABLE IF NOT EXISTS command (
   command_id  INTEGER NOT NULL UNIQUE CHECK (command_id >= 0 AND typeof(command_id) = 'integer'),

@@ -10,7 +10,6 @@ import (
 	"github.com/fpawel/procmq"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
-	"log"
 	"math"
 	"time"
 )
@@ -26,10 +25,7 @@ type readProductResult struct {
 	Error        string
 }
 
-type CoefficientValue struct {
-	Coefficient ankat.Coefficient
-	Value float64
-}
+type CoefficientValues = map[ankat.Coefficient]float64
 
 func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err error, format string, a ...interface{}) {
 	if fetch.Canceled(err) {
@@ -130,89 +126,57 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 	return value, err
 }
 
-
-
 func (x productDevice) writeInitCoefficients() error {
 
 
-	sensorCode := func(gas string, scale float64) float64 {
-		switch gas {
-		case "CH₄":
-			return 16
-		case "C₃H₈":
-			return 14
-		case "∑CH":
-			return 15
-		case "CO₂":
-			switch scale {
-			case 2:
-				return 11
-			case 5:
-				return 12
-			case 10:
-				return 13
-			}
-		}
-		log.Panicf("unknown sensor: gas: %q, scale: %v", gas, scale)
-		return 0
+
+	xs := CoefficientValues{
+		2: float64(time.Now().Year()),
+
+		5: x.db.CurrentPartyUnitsCode(ankat.Chan1),
+		6: x.db.CurrentPartyGasTypeCode(ankat.Chan1),
+		7: x.db.CurrentPartyScaleCode(ankat.Chan1),
+		10: x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen),
+		11: x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End),
+
+		23: 0,
+		24: 1,
+		25: 0,
+		26: 0,
+		27: 0,
+		28: 0,
+		29: 0,
+		30: 1,
+		31: 0,
+		32: 0,
+
+		43: 740,
+		44: 0,
+		45: 0,
+		46: 1,
+		47: 0,
+
+		14: x.db.CurrentPartyUnitsCode(ankat.Chan2),
+		15: x.db.CurrentPartyGasTypeCode(ankat.Chan2),
+		16: x.db.CurrentPartyScaleCode(ankat.Chan2),
+		19: x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen),
+		20: x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End),
+		33: 0,
+		34: 1,
+		35: 0,
+		36: 0,
+		37: 0,
+		38: 0,
+		39: 0,
+		40: 1,
+		41: 0,
+		42: 0,
 	}
 
-	val := func(name string) float64 {
-		return x.db.CurrentPartyValue(name)
-	}
-	str := func(name string) string {
-		return x.db.CurrentPartyValueStr(name)
-	}
 
-	xs := []CoefficientValue{
-		{2, float64(time.Now().Year())},
-		{6, sensorCode(
-			str("gas1"),
-			val("scale1")),
-		},
-		{10, x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)},
-		{11, x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End)},
 
-		{23, 0},
-		{24, 1},
-		{25, 0},
-		{26, 0},
-		{27, 0},
-		{28, 0},
-		{29, 0},
-		{30, 1},
-		{31, 0},
-		{32, 0},
 
-		{43, 740},
-		{44, 0},
-		{45, 0},
-		{46, 1},
-		{47, 0},
-	}
 
-	if x.db.IsTwoConcentrationChannels() {
-
-		xs2 := []CoefficientValue{
-			{15, sensorCode(
-				str("gas2"),
-				val("scale2")),
-			},
-			{19, x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)},
-			{20, x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End)},
-			{33, 0},
-			{34, 1},
-			{35, 0},
-			{36, 0},
-			{37, 0},
-			{38, 0},
-			{39, 0},
-			{40, 1},
-			{41, 0},
-			{42, 0},
-		}
-		xs = append(xs, xs2...)
-	}
 
 	return x.writeCoefficientValues(xs)
 }
@@ -295,9 +259,10 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	return err
 }
 
-func (x productDevice) writeCoefficientValues(coefficientValues []CoefficientValue) error {
-	for _,k := range coefficientValues {
-		if err := x.writeCoefficientValue(k.Coefficient, k.Value); err != nil {
+func (x productDevice) writeCoefficientValues(coefficientValues CoefficientValues) error {
+
+	for k, value := range coefficientValues {
+		if err := x.writeCoefficientValue(k, value); err != nil {
 			return err
 		}
 	}
@@ -305,8 +270,8 @@ func (x productDevice) writeCoefficientValues(coefficientValues []CoefficientVal
 }
 
 func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
-	x.writeInfof("%v: ввод коэффициентов %s", sect, sect.CoefficientsStr() )
-	for i := sect.Coefficient0(); i < sect.Coefficient0() + sect.CoefficientsCount(); i++ {
+	x.writeInfof("%v: ввод коэффициентов %s", sect, sect.CoefficientsStr())
+	for i := sect.Coefficient0(); i < sect.Coefficient0()+sect.CoefficientsCount(); i++ {
 		if err := x.writeCoefficient(i); err != nil {
 			return err
 		}
@@ -321,7 +286,7 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	if fetch.Canceled(err) {
 		return nil
 	}
-	x.notifyConnected(err, "K%d:=%v", coefficient, float6(value) )
+	x.notifyConnected(err, "K%d:=%v", coefficient, float6(value))
 	if err == nil {
 		x.db.SetCoefficientValue(x.product.Serial, coefficient, float6(value))
 		x.writeInfof("K%d:=%v", coefficient, value)
