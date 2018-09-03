@@ -3,7 +3,31 @@ PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS party (
   party_id   INTEGER PRIMARY KEY,
-  created_at TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
+  created_at TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+  product_type_number INTEGER  DEFAULT 22,
+
+  sensors_count INTEGER DEFAULT 1,
+
+  pressure_sensor BOOLEAN DEFAULT 1,
+
+  cgas1 REAL DEFAULT 0.,
+  cgas2 REAL DEFAULT 50.,
+  cgas3 REAL DEFAULT 70.,
+  cgas4 REAL DEFAULT 100.,
+  cgas5 REAL DEFAULT 0.67,
+  cgas6 REAL DEFAULT 2.,
+
+  temperature_minus REAL DEFAULT -30.,
+  temperature_plus REAL DEFAULT 45.,
+
+
+  gas1 TEXT DEFAULT 'CH₄',
+  gas2 TEXT DEFAULT 'CH₄',
+  scale1 TEXT DEFAULT 100,
+  scale2 TEXT DEFAULT 100,
+  units1 TEXT DEFAULT '%, НКПР',
+  units2 TEXT DEFAULT '%, НКПР'
+
 );
 
 CREATE VIEW IF NOT EXISTS party_year AS
@@ -38,17 +62,10 @@ CREATE VIEW IF NOT EXISTS current_party AS
   ORDER BY created_at DESC
   LIMIT 1;
 
-CREATE VIEW IF NOT EXISTS current_party_id AS
-  SELECT party_id
-  FROM party
-  ORDER BY created_at DESC
-  LIMIT 1;
-
-
 CREATE VIEW IF NOT EXISTS current_party_products AS
   SELECT product_serial
   FROM product
-  WHERE party_id IN current_party_id;
+  WHERE party_id IN (SELECT party_id FROM current_party);
 
 CREATE VIEW IF NOT EXISTS current_party_products_enumerated AS
   SELECT count(*) - 1 AS ordinal, cur.product_serial AS product_serial
@@ -67,31 +84,6 @@ CREATE VIEW IF NOT EXISTS current_party_products_config AS
   SELECT a.ordinal, a.product_serial, IFNULL(b.checked, 1) AS checked, IFNULL(b.comport, 'COM1') AS comport
   FROM current_party_products_enumerated a
          LEFT JOIN product_config b ON a.ordinal = b.ordinal;
-
-CREATE TABLE IF NOT EXISTS party_var (
-  var                NOT NULL PRIMARY KEY CHECK (var != ''),
-  name       TEXT    NOT NULL CHECK (name != ''),
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  type       TEXT    NOT NULL CHECK (type in ('bool', 'integer', 'real', 'text')),
-  min,
-  max,
-  def_val            NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS party_value (
-  var              NOT NULL,
-  party_id INTEGER NOT NULL,
-  value            NOT NULL,
-  UNIQUE (party_id, var),
-  FOREIGN KEY (var) REFERENCES party_var (var),
-  FOREIGN KEY (party_id) REFERENCES party (party_id)
-    ON DELETE CASCADE
-);
-
-CREATE VIEW IF NOT EXISTS party_value2 AS
-  SELECT party_id, name, value
-  FROM party_value
-         INNER JOIN party_var ON party_value.var = party_var.var;
 
 CREATE TABLE IF NOT EXISTS read_var (
   var         INTEGER NOT NULL PRIMARY KEY CHECK (typeof(var) = 'integer' AND var >= 0),
@@ -123,6 +115,18 @@ CREATE TABLE IF NOT EXISTS product_value (
     ON DELETE CASCADE
 );
 
+CREATE VIEW IF NOT EXISTS party_info AS
+  SELECT *, cast(strftime('%Y', created_at) AS INT)                                 AS year,
+            cast(strftime('%m', created_at) AS INT)                                 AS month,
+            cast(strftime('%d', created_at) AS INT)                                 AS day,
+          p.product_type_number || ' ' || p.gas1 || ' ' || cast(p.scale1 AS INTEGER)
+              || (CASE p.sensors_count
+                    WHEN 1 THEN ''
+                    ELSE ' ' || p.gas2 || ' ' || cast(p.scale2 AS INTEGER)
+      END)                                                                               AS what,
+            (SELECT exists(SELECT * FROM last_work_log w WHERE w.party_id = p.party_id)) AS has_log
+  FROM party p;
+
 CREATE TABLE IF NOT EXISTS main_error_source (
   party_id       INTEGER                 NOT NULL,
   product_serial REAL                    NOT NULL,
@@ -141,41 +145,29 @@ CREATE TABLE IF NOT EXISTS main_error_source (
 );
 
 CREATE VIEW IF NOT EXISTS main_error1 AS
-  SELECT *, (SELECT value
-             FROM party_value
-             WHERE a.party_id = party_id
-               AND var = (SELECT CASE a.sensor
-                                   WHEN 1 THEN CASE a.scale
-                                                 WHEN 'B' THEN 'cgas1'
-                                                 WHEN 'M' THEN 'cgas2'
-                                                 WHEN 'E' THEN 'cgas4' END
-                                   WHEN 2 THEN CASE a.scale
-                                                 WHEN 'B' THEN 'cgas1'
-                                                 WHEN 'M' THEN 'cgas5'
-                                                 WHEN 'E' THEN 'cgas6' END END)) AS nominal,
-            (SELECT value
-             FROM party_value
-             WHERE a.party_id = party_id
-               AND var = (SELECT CASE a.sensor
-                                   WHEN 1 THEN 'units2'
-                                   WHEN 2 THEN 'units2' END))                    AS units,
-            (SELECT value
-             FROM party_value
-             WHERE a.party_id = party_id
-               AND var = (SELECT CASE a.sensor
-                                   WHEN 1 THEN 'gas1'
-                                   WHEN 2 THEN 'gas2' END))                      AS gas,
-            (SELECT value
-             FROM party_value
-             WHERE a.party_id = party_id
-               AND var = (SELECT CASE a.sensor
-                                   WHEN 1 THEN 'scale1'
-                                   WHEN 2 THEN 'scale2' END))                    AS scale_value
-  FROM main_error_source a;
+  SELECT *, ( CASE a.sensor
+                      WHEN 1 THEN CASE a.scale
+                                    WHEN 'B' THEN p.cgas1
+                                    WHEN 'M' THEN p.cgas2
+                                    WHEN 'E' THEN p.cgas4 END
+                      WHEN 2 THEN CASE a.scale
+                                    WHEN 'B' THEN p.cgas1
+                                    WHEN 'M' THEN p.cgas5
+                                    WHEN 'E' THEN p.cgas6 END END) nominal,
+            ( CASE a.sensor
+                      WHEN 1 THEN p.units1
+                      WHEN 2 THEN p.units2 END)               AS              units,
+            (CASE a.sensor
+                      WHEN 1 THEN p.gas1
+                      WHEN 2 THEN p.gas2 END)   AS              gas,
+            (CASE a.sensor
+                      WHEN 1 THEN p.scale1
+                      WHEN 2 THEN p.scale2 END) AS              scale_value
+  FROM main_error_source a
+         INNER JOIN party p ON p.party_id = a.party_id;
 
 CREATE VIEW IF NOT EXISTS main_error2 AS
-  SELECT *, (value - nominal) AS absolute_error,
-            (
+  SELECT *, (
                 CASE units
                   WHEN '%, НКПР' THEN 5
                   WHEN 'объемная доля, %' THEN CASE gas
@@ -187,58 +179,17 @@ CREATE VIEW IF NOT EXISTS main_error2 AS
                                                                    WHEN 10. THEN 0.5
                         END
                     END
-                    END)      AS absolute_error_limit
-  FROM main_error1;
+                    END)                                      AS absolute_error_limit
+  FROM main_error1 a;
 
-CREATE VIEW IF NOT EXISTS main_error AS
-  SELECT *, abs(absolute_error) < absolute_error_limit       AS ok,
-            100 * abs(absolute_error) / absolute_error_limit AS percent_from_absolute_error_limit
+CREATE VIEW IF NOT EXISTS main_error3 AS
+  SELECT *, (value - nominal) AS abolute_error
   FROM main_error2;
 
-CREATE VIEW IF NOT EXISTS party_info AS
-  SELECT created_at,
-         p.party_id                                                                       AS party_id,
-         cast(strftime('%Y', created_at) AS INT)                                          AS year,
-         cast(strftime('%m', created_at) AS INT)                                          AS month,
-         cast(strftime('%d', created_at) AS INT)                                          AS day,
-         a.value                                                                          AS product_type_number,
-         b.value                                                                          AS gas1,
-         c.value                                                                          AS gas2,
-         d.value                                                                          AS sensors_count,
-         e.value                                                                          AS scale1,
-         g.value                                                                          AS scale2,
-         a.value || ' ' || b.value || ' ' || cast(e.value AS INTEGER) || (SELECT CASE d.value
-                                                                                   WHEN 1 THEN ''
-                                                                                   ELSE ' ' || c.value || ' ' || cast(g.value AS INTEGER)
-                                                                                     END) AS what,
-         (SELECT exists(SELECT * FROM last_work_log w WHERE w.party_id = p.party_id))     AS has_log
-  FROM party p
-         INNER JOIN party_value a on p.party_id = a.party_id and a.var = 'product_type_number'
-         INNER JOIN party_value b on p.party_id = b.party_id and b.var = 'gas1'
-         INNER JOIN party_value c on p.party_id = c.party_id and c.var = 'gas2'
-         INNER JOIN party_value d on p.party_id = d.party_id and d.var = 'sensors_count'
-         INNER JOIN party_value e on p.party_id = e.party_id and e.var = 'scale1'
-         INNER JOIN party_value g on p.party_id = g.party_id and g.var = 'scale2';
-
-INSERT
-OR IGNORE INTO party_var (sort_order, var, name, type, min, max, def_val)
-VALUES (0, 'product_type_number', 'номер исполнения', 'integer', 1, NULL, 10),
-       (1, 'sensors_count', 'количество каналов', 'integer', 1, 2, 1),
-       (2, 'gas1', 'газ к.1', 'text', NULL, NULL, 'CH₄'),
-       (3, 'gas2', 'газ к.2', 'text', NULL, NULL, 'CH₄'),
-       (4, 'scale1', 'шкала к.1', 'real', 0, NULL, 2),
-       (5, 'scale2', 'шкала к.2', 'real', 0, NULL, 2),
-       (6, 'units1', 'ед.изм. к.1', 'text', NULL, NULL, '%, НКПР'),
-       (7, 'units2', 'ед.изм. к.2', 'text', NULL, NULL, '%, НКПР'),
-       (8, 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
-       (9, 'cgas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
-       (10, 'cgas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
-       (11, 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
-       (12, 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
-       (13, 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2),
-       (14, 't-', 'T-,"С', 'real', NULL, NULL, -30),
-       (15, 't+', 'T+,"С', 'real', NULL, NULL, 45),
-       (16, 'pressure_sensor', 'Датчик давления', 'bool', NULL, NULL, 0);
+CREATE VIEW IF NOT EXISTS main_error AS
+  SELECT *, abs(abolute_error) < absolute_error_limit       AS ok,
+            100 * abs(abolute_error) / absolute_error_limit AS percent_from_absolute_error_limit
+  FROM main_error3;
 
 INSERT
 OR IGNORE INTO read_var (var, name, description)
@@ -367,19 +318,6 @@ CREATE VIEW IF NOT EXISTS work_info AS
                          WHERE work_log.level >= 4))                       AS has_error
   FROM work w;
 
-CREATE VIEW IF NOT EXISTS current_party_var_value AS
-  SELECT party_var.var        AS var,
-         party_var.def_val    AS def_val,
-         party_var.name       AS name,
-         party_var.sort_order AS sort_order,
-         party_var.min        AS min,
-         party_var.max        AS max,
-         party_var.type       AS type,
-         party_value.value    AS value
-  FROM party_var
-         INNER JOIN party_value ON party_var.var = party_value.var
-  WHERE party_value.party_id IN current_party_id;
-
 CREATE TABLE IF NOT EXISTS coefficient (
   coefficient_id INTEGER NOT NULL  PRIMARY KEY CHECK (typeof(coefficient_id) = 'integer' AND coefficient_id >= 0),
   name           TEXT    NOT NULL,
@@ -406,7 +344,7 @@ CREATE VIEW IF NOT EXISTS current_party_coefficient_value AS
   SELECT ordinal, a.product_serial, coefficient_id, value
   FROM product_coefficient_value a
          INNER JOIN current_party_products_config b ON a.product_serial = b.product_serial
-  WHERE party_id IN current_party_id;
+  WHERE party_id IN (SELECT party_id FROM current_party);
 
 INSERT
 OR IGNORE INTO coefficient (coefficient_id, name, description)

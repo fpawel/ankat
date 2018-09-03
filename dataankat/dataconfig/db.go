@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-//go:generate go run ./../gen_sql_str/main.go
-
 type DBConfig struct {
 	DB *sqlx.DB
 }

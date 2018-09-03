@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS config (
   default_value         NOT NULL,
   min,
   max,
-  value                 NOT NULL,
+  value,
   CONSTRAINT this_primary_key UNIQUE (property_name, section_name),
   FOREIGN KEY (section_name) REFERENCES section (section_name)
 );
@@ -36,19 +36,34 @@ CREATE TABLE IF NOT EXISTS value_list (
   UNIQUE (property_name, value)
 );
 
-INSERT
-OR IGNORE INTO section (sort_order, section_name, hint)
-VALUES (0, 'comport_products', 'Связь с приборами'),
-       (1, 'comport_gas', 'Пневмоблок'),
-       (2, 'comport_temperature', 'Термокамера'),
-       (3, 'automatic_work', 'Автоматическая настройка');
+CREATE TRIGGER IF NOT EXISTS trigger_set_default_value
+  AFTER INSERT
+  ON config
+  FOR EACH ROW
+  WHEN (NEW.value IS NULL)
+BEGIN
+  UPDATE config
+  SET value = new.default_value
+  WHERE section_name = new.section_name AND property_name = new.property_name;
+END;
+
+
+
 
 INSERT
-OR IGNORE INTO config (sort_order, section_name, property_name, hint, type, min, max, default_value, value)
-VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3, 3),
-       (1, 'automatic_work', 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3, 3),
-       (2, 'automatic_work', 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3, 3),
-       (3, 'automatic_work', 'delta_temperature', 'Погрешность установки температуры, "С', 'integer', 1, 5, 3, 3),
+OR IGNORE INTO section (sort_order, section_name, hint)
+VALUES (0, 'party', 'Параметры партии'),
+       (1, 'comport_products', 'Связь с приборами'),
+       (2, 'comport_gas', 'Пневмоблок'),
+       (3, 'comport_temperature', 'Термокамера'),
+       (4, 'automatic_work', 'Автоматическая настройка');
+
+INSERT OR IGNORE
+    INTO config (sort_order, section_name, property_name, hint, type, min, max, default_value)
+VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3),
+       (1, 'automatic_work', 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3),
+       (2, 'automatic_work', 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3),
+       (3, 'automatic_work', 'delta_temperature', 'Погрешность установки температуры, "С', 'integer', 1, 5, 3),
        (4,
         'automatic_work',
         'timeout_temperature',
@@ -56,8 +71,24 @@ VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки 
         'integer',
         5,
         270,
-        120,
-        120);
+        120),
+       (0, 'party', 'product_type_number', 'номер исполнения', 'integer', 1, NULL, 10),
+       (1, 'party', 'sensors_count', 'количество каналов', 'integer', 1, 2, 1),
+       (2, 'party', 'pressure_sensor', 'Датчик давления', 'bool', NULL, NULL, 0),
+       (3, 'party', 'gas1', 'газ к.1', 'text', NULL, NULL, 'CH₄'),
+       (4, 'party', 'gas2', 'газ к.2', 'text', NULL, NULL, 'CH₄'),
+       (5, 'party', 'scale1', 'шкала к.1', 'real', 0, NULL, 2),
+       (6, 'party', 'scale2', 'шкала к.2', 'real', 0, NULL, 2),
+       (7, 'party', 'units1', 'ед.изм. к.1', 'text', NULL, NULL, '%, НКПР'),
+       (8, 'party', 'units2', 'ед.изм. к.2', 'text', NULL, NULL, '%, НКПР'),
+       (9, 'party', 'temperature_minus', 'T-,"С', 'real', NULL, NULL, -30),
+       (10, 'party', 'temperature_plus', 'T+,"С', 'real', NULL, NULL, 45),
+       (11, 'party', 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
+       (12, 'party', 'cgas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
+       (13, 'party', 'cgas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
+       (14, 'party', 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
+       (15, 'party', 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
+       (16, 'party', 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2);
 
 INSERT
 OR IGNORE INTO value_list (property_name, value)
