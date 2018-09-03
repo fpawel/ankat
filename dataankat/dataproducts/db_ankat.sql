@@ -4,18 +4,18 @@ PRAGMA encoding = 'UTF-8';
 CREATE TABLE IF NOT EXISTS party (
   party_id   INTEGER PRIMARY KEY,
   created_at TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  product_type_number INTEGER  DEFAULT 22,
+  product_type_number INTEGER  DEFAULT 22 CHECK (product_type_number > 0),
 
-  sensors_count INTEGER DEFAULT 1,
+  sensors_count INTEGER DEFAULT 1 CHECK (sensors_count IN (1,2)),
 
-  pressure_sensor BOOLEAN DEFAULT 1,
+  pressure_sensor  DEFAULT 1 CHECK (pressure_sensor IN (0,1)),
 
-  cgas1 REAL DEFAULT 0.,
-  cgas2 REAL DEFAULT 50.,
-  cgas3 REAL DEFAULT 70.,
-  cgas4 REAL DEFAULT 100.,
+  cgas1 REAL DEFAULT 0,
+  cgas2 REAL DEFAULT 50,
+  cgas3 REAL DEFAULT 70,
+  cgas4 REAL DEFAULT 100,
   cgas5 REAL DEFAULT 0.67,
-  cgas6 REAL DEFAULT 2.,
+  cgas6 REAL DEFAULT 2,
 
   temperature_minus REAL DEFAULT -30.,
   temperature_plus REAL DEFAULT 45.,
@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS party (
 
   gas1 TEXT DEFAULT 'CH₄',
   gas2 TEXT DEFAULT 'CH₄',
-  scale1 TEXT DEFAULT 100,
-  scale2 TEXT DEFAULT 100,
+  scale1 REAL DEFAULT 100,
+  scale2 REAL DEFAULT 100,
   units1 TEXT DEFAULT '%, НКПР',
   units2 TEXT DEFAULT '%, НКПР'
 

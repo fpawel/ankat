@@ -81,19 +81,17 @@ func (x DBProducts) CurrentPartyProductValue(serial ankat.ProductSerial, p ankat
 func (x DBProducts) SetCurrentPartyProductValue(serial ankat.ProductSerial, p ankat.ProductVar, value float64) {
 	x.DB.MustExec(`
 INSERT OR REPLACE INTO product_value (party_id, product_serial, section, point, var, value)
-VALUES ((SELECT * FROM current_party_id), ?, ?, ?, ?, ?); `, serial, p.Sect, p.Point, p.Var, value)
+VALUES ((SELECT party_id FROM current_party), ?, ?, ?, ?, ?); `, serial, p.Sect, p.Point, p.Var, value)
 }
 
+
 func (x DBProducts) CurrentPartyValue(name string) ( value float64) {
-	dbutils.MustGet(x.DB, &value, `
-SELECT value FROM party_value 
-WHERE var=$1 AND party_id IN ( SELECT * FROM current_party_id);`, name)
+	dbutils.MustGet(x.DB, &value, "SELECT " + name +" FROM current_party;")
 	return
 }
 
 func (x DBProducts) CurrentPartyValueStr(name string) (value string) {
-	dbutils.MustGet(x.DB, &value, `
-SELECT value FROM current_party_var_value WHERE var=?;`, name)
+	dbutils.MustGet(x.DB, &value, "SELECT " + name +" FROM current_party;" )
 	return
 }
 
@@ -215,7 +213,7 @@ func (x DBProducts) Product(n int) (p Product) {
 func (x DBProducts) SetCoefficientValue(productSerial ankat.ProductSerial, coefficient ankat.Coefficient, value float64) {
 	x.DB.MustExec(`
 INSERT OR REPLACE INTO product_coefficient_value (party_id, product_serial, coefficient_id, value)
-VALUES ((SELECT * FROM current_party_id),
+VALUES ((SELECT party_id FROM current_party),
         $1, $2, $3); `, productSerial, coefficient, value)
 }
 
