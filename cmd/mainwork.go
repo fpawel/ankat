@@ -11,18 +11,69 @@ import (
 	"time"
 )
 
-
-type interpolateChanSect = struct {
-	sect ankat.Sect
-	interpolateFunc func(ankat.ProductSerial, ankat.AnkatChan) ([]float64, []numeth.Coordinate, error)
-}
-type interpolateChanSectFunc func(ankat.AnkatChan) interpolateChanSect
 type interpolateSectFunc func(ankat.ProductSerial) ([]float64, []numeth.Coordinate, error)
 
 func (x app) mainWork() (result uiworks.Work) {
 	t20gc := func() float64 {
 		return 20
 	}
+
+	workTemperature := uiworks.L("Термокомпенсация",
+		uiworks.L("Снятие",
+			x.workTemperaturePoint("Низкая температура", func() float64 {
+				return x.db.CurrentPartyValue("t-")
+			}, 0),
+			x.workTemperaturePoint("Высокая температура", func() float64 {
+				return x.db.CurrentPartyValue("t+")
+			}, 2),
+			x.workTemperaturePoint("НКУ", t20gc, 1),
+		),
+		uiworks.L("Расчёт",
+			x.workCalculateSect(ankat.T01, x.db.InterpolateT01),
+			x.workCalculateSect(ankat.TK1, x.db.InterpolateTK1),
+		),
+
+		uiworks.L("Ввод",
+			x.workWriteSectCoefficients(ankat.T01),
+			x.workWriteSectCoefficients(ankat.TK1),
+		),
+	)
+
+	workLin := uiworks.L("Линеаризация",
+		x.workSaveCalculateLinSourceValues(),
+		uiworks.L("Расчёт",
+			x.workCalculateSect(ankat.Lin1, x.db.InterpolateLin1),
+		),
+		uiworks.L("Ввод",
+			x.workWriteSectCoefficients(ankat.Lin1),
+		),
+	)
+
+	if x.db.IsTwoConcentrationChannels() {
+
+		workTemperature.Children[1].AddChildren(
+			x.workCalculateSect(ankat.T02, x.db.InterpolateT01),
+			x.workCalculateSect(ankat.TK2, x.db.InterpolateTK1), )
+
+		workTemperature.Children[2].AddChildren(
+			x.workWriteSectCoefficients(ankat.T02),
+			x.workWriteSectCoefficients(ankat.TK2), )
+
+		workLin.Children[1].AddChildren(
+			x.workCalculateSect(ankat.Lin2, x.db.InterpolateLin2) )
+
+		workLin.Children[2].AddChildren(
+			x.workWriteSectCoefficients(ankat.Lin2) )
+	}
+
+	if x.db.IsPressureSensor() {
+		workTemperature.Children[1].AddChildren(
+			x.workCalculateSect(ankat.PT, x.db.InterpolatePT))
+		workTemperature.Children[2].AddChildren(
+			x.workWriteSectCoefficients(ankat.PT))
+	}
+
+
 
 	result = uiworks.L("Настройка Анкат",
 		x.workHoldTemperature("НКУ", t20gc),
@@ -79,160 +130,93 @@ func (x app) mainWork() (result uiworks.Work) {
 			return nil
 		}),
 
-		uiworks.S("Калибровка начала шкалы", func() error {
-			if err := x.blowGas(ankat.GasNitrogen); err != nil {
-				return errors.Wrap(err,
-					"не удалось продуть азот")
-			}
-			nitrogenConcentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)
-			if err := x.sendCmd(1, nitrogenConcentration); err != nil {
-				return errors.Wrap(err,
-					"не удалось выполнить команду калибровки начала шкалы канала 1")
-			}
-			if x.db.IsTwoConcentrationChannels() {
-				if err := x.sendCmd(4, nitrogenConcentration); err != nil {
+		uiworks.L("Калибровка",
+			uiworks.S("Начало шкалы", func() error {
+				if err := x.blowGas(ankat.GasNitrogen); err != nil {
 					return errors.Wrap(err,
-						"не удалось выполнить команду калибровки начала шкалы канала 2")
+						"не удалось продуть азот")
 				}
-			}
-			x.doPause("калибровка начала шкалы", 10*time.Second)
-			return nil
-		}),
-
-		uiworks.S("Калибровка чувствительности", func() error {
-			if err := x.blowGas(ankat.GasChan1End); err != nil {
-				return errors.Wrap(err,
-					"не удалось продуть конец шкалы канала 1")
-			}
-			concentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End)
-			if err := x.sendCmd(2, concentration); err != nil {
-				return errors.Wrap(err,
-					"не удалось выполнить команду калибровки чувствительности канала 1")
-			}
-			if x.db.IsTwoConcentrationChannels() {
-				if err := x.blowGas(ankat.GasChan2End); err != nil {
+				nitrogenConcentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)
+				if err := x.sendCmd(1, nitrogenConcentration); err != nil {
 					return errors.Wrap(err,
-						"не удалось продуть конец шкалы канала 2")
+						"не удалось выполнить команду калибровки начала шкалы канала 1")
 				}
-				concentration = x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End)
-				if err := x.sendCmd(5, concentration); err != nil {
+				if x.db.IsTwoConcentrationChannels() {
+					if err := x.sendCmd(4, nitrogenConcentration); err != nil {
+						return errors.Wrap(err,
+							"не удалось выполнить команду калибровки начала шкалы канала 2")
+					}
+				}
+				x.doPause("калибровка начала шкалы", 10*time.Second)
+				return nil
+			}),
+
+			uiworks.S("Чувствительность", func() error {
+				if err := x.blowGas(ankat.GasChan1End); err != nil {
 					return errors.Wrap(err,
-						"не удалось выполнить команду калибровки чувствительности канала 2")
+						"не удалось продуть конец шкалы канала 1")
 				}
-			}
-			x.doPause("калибровка чувствительности", 10*time.Second)
+				concentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End)
+				if err := x.sendCmd(2, concentration); err != nil {
+					return errors.Wrap(err,
+						"не удалось выполнить команду калибровки чувствительности канала 1")
+				}
+				if x.db.IsTwoConcentrationChannels() {
+					if err := x.blowGas(ankat.GasChan2End); err != nil {
+						return errors.Wrap(err,
+							"не удалось продуть конец шкалы канала 2")
+					}
+					concentration = x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End)
+					if err := x.sendCmd(5, concentration); err != nil {
+						return errors.Wrap(err,
+							"не удалось выполнить команду калибровки чувствительности канала 2")
+					}
+				}
+				x.doPause("калибровка чувствительности", 10*time.Second)
 
-			if err := x.blowGas(ankat.GasNitrogen); err != nil {
-				return errors.Wrap(err,
-					"не удалось продуть азот после калибровки чувствительности")
-			}
+				if err := x.blowGas(ankat.GasNitrogen); err != nil {
+					return errors.Wrap(err,
+						"не удалось продуть азот после калибровки чувствительности")
+				}
 
-			return nil
-		}),
-		x.workSaveCalculateLinSourceValues(),
-		x.workInterpolateChanSect("Линеаризация", func(channel ankat.AnkatChan) interpolateChanSect {
-			return interpolateChanSect{
-				channel.Lin(),
-				x.db.InterpolateLin,
-			}
-		}),
+				return nil
+			}),
+		),
+		workLin,
 
-		x.workTemperaturePoint("низкая температура", func() float64 {
-			return x.db.CurrentPartyValue("t-")
-		}, 0),
-		x.workTemperaturePoint("высокая температура", func() float64 {
-			return x.db.CurrentPartyValue("t+")
-		}, 2),
-		x.workTemperaturePoint("НКУ", t20gc, 1),
-
-		x.workInterpolateChanSect("Термокомпенсация нуля шкалы", func(channel ankat.AnkatChan) interpolateChanSect {
-			return interpolateChanSect{
-				sect:            channel.T0(),
-				interpolateFunc: x.db.InterpolateT0,
-			}
-		}),
-
-		x.workInterpolateChanSect("Термокомпенсация конца шкалы", func(channel ankat.AnkatChan) interpolateChanSect {
-			return interpolateChanSect{
-				sect:            channel.TK(),
-				interpolateFunc: x.db.InterpolateTK,
-			}
-		}),
+		workTemperature,
 	)
-
-	if x.db.IsPressureSensor(){
-		result.AddChild( x.workInterpolateSect("Термокомпенсация давления", ankat.PT, x.db.InterpolatePT ) )
-	}
-
 	return
 }
 
-func (x *app) workInterpolateSect(what string, sect ankat.Sect, interpolateFunc interpolateSectFunc) (result uiworks.Work) {
+func (x *app) workCalculateSect(sect ankat.Sect, interpolateFunc interpolateSectFunc) (result uiworks.Work) {
 
-	result = uiworks.L(what)
-
-	fstr := func (s string) string{
-		return fmt.Sprintf("%s: %s к-тов %s", sect, s, sect.CoefficientsStr(), )
-	}
-
-	result.AddChild(uiworks.S(fstr("расчёт"), func() error {
-		x.doEachProductData(func(p productData) {
-			values, xs, err := interpolateFunc(p.product.Serial)
-			if err != nil {
-				p.writeErrorf("расчёт %v не удался: %v", sect, err)
-			} else {
-				for  i := range values{
-					values[i] = math.Round(values[i] * 1000000.) / 1000000.
+	result = uiworks.S(fmt.Sprintf("%s: расчёт к-тов %s", sect, sect.CoefficientsStr()),
+		func() error {
+			x.doEachProductData(func(p productData) {
+				values, xs, err := interpolateFunc(p.product.Serial)
+				if err != nil {
+					p.writeErrorf("расчёт %v не удался: %v", sect, err)
+				} else {
+					for i := range values {
+						values[i] = math.Round(values[i]*1000000.) / 1000000.
+					}
+					p.writeInfof("расчёт %v: %v: [%s] = [%v]", sect, xs, sect.CoefficientsStr(), values)
 				}
-				p.writeInfof("расчёт %v: %v: [%s] = [%v]", sect, xs, sect.CoefficientsStr(), values)
-			}
-		})
-		return nil
-	}))
-	result.AddChild(uiworks.S(fstr("ввод"), func() error {
+			})
+			return nil
+		} )
+	return
+}
+
+func (x *app) workWriteSectCoefficients(sect ankat.Sect)  uiworks.Work {
+
+	return uiworks.S(fmt.Sprintf("%s: ввод к-тов %s", sect, sect.CoefficientsStr()), func() error {
 		return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 			return p.writeSectCoefficients(sect)
 		})
 		return nil
-	}))
-
-	return
-}
-
-func (x *app) workInterpolateChanSect(what string, ccs interpolateChanSectFunc) (result uiworks.Work) {
-
-	result = uiworks.L(what)
-
-	for _, ankatChan := range x.db.AnkatChannels() {
-		concentrationChannel := ankatChan
-		cs := ccs(concentrationChannel)
-
-		fstr := func (s string) string{
-			return fmt.Sprintf("%s: %s к-тов %s, канал %d", cs.sect, s, cs.sect.CoefficientsStr(), ankatChan)
-		}
-
-		result.AddChild(uiworks.S(fstr("расчёт"), func() error {
-			x.doEachProductData(func(p productData) {
-				values, xs, err := cs.interpolateFunc(p.product.Serial, concentrationChannel)
-				if err != nil {
-					p.writeErrorf("расчёт %v не удался: %v", cs.sect, err)
-				} else {
-					for  i := range values{
-						values[i] = math.Round(values[i] * 1000000.) / 1000000.
-					}
-					p.writeInfof("расчёт %v: %v: [%s] = [%v]", cs.sect, xs, cs.sect.CoefficientsStr(), values)
-				}
-			})
-			return nil
-		}))
-		result.AddChild(uiworks.S(fstr("ввод"), func() error {
-			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
-				return p.writeSectCoefficients(cs.sect)
-			})
-			return nil
-		}))
-	}
-	return
+	})
 }
 
 func (x *app) workTemperaturePoint(what string, temperature func() float64, point ankat.Point) (r uiworks.Work) {
@@ -249,8 +233,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.db.VarName(a.Var))
 		}
 
-		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s: %s", what,
-			gas.Description(), s), func(p productDevice) error {
+		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s", gas.Description(), s), func(p productDevice) error {
 			return p.fixVarsValues(vars)
 		})
 	}
@@ -279,8 +262,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 		})
 	}
 
-	r.Name = fmt.Sprintf("Cнятие на температуре: %s", what)
-	r.Children = append(r.Children,
+	r = uiworks.L(what,
 		x.workHoldTemperature(what, temperature),
 		x.workBlowGas(ankat.GasNitrogen),
 		workSave(ankat.GasNitrogen, nitrogenVars),
@@ -294,8 +276,9 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 			},
 		}),
 	)
+
 	if x.db.IsTwoConcentrationChannels() {
-		r.Children = append(r.Children,
+		r.AddChildren(
 			x.workBlowGas(ankat.GasChan2End),
 			workSave(ankat.GasChan2End, []ankat.ProductVar{
 				{
@@ -306,13 +289,13 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 				},
 			}))
 	}
-	r.Children = append(r.Children, x.workBlowGas(ankat.GasNitrogen))
+	r.AddChild(x.workBlowGas(ankat.GasNitrogen))
 
 	return
 }
 
 func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
-	r.Name = "Снятие линеаризации"
+	r.Name = "Снятие"
 
 	gases := []ankat.GasCode{
 		ankat.GasNitrogen,
@@ -328,7 +311,7 @@ func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
 	}
 	for _, gas := range gases {
 		gas := gas
-		r.Children = append(r.Children, uiworks.S(gas.Description(), func() error {
+		r.AddChild( uiworks.S(gas.Description(), func() error {
 			if err := x.blowGas(gas); err != nil {
 				return err
 			}

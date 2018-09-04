@@ -165,3 +165,27 @@ func (x DBProducts) InterpolatePT(productSerial ankat.ProductSerial) (coefficien
 	}
 	return
 }
+
+func (x DBProducts) InterpolateT01(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateT0(productSerial, ankat.Chan1)
+}
+
+func (x DBProducts) InterpolateT02(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateT0(productSerial, ankat.Chan2)
+}
+
+func (x DBProducts) InterpolateTK1(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateTK(productSerial, ankat.Chan1)
+}
+
+func (x DBProducts) InterpolateTK2(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateTK(productSerial, ankat.Chan2)
+}
+
+func (x DBProducts) InterpolateLin1(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateLin(productSerial, ankat.Chan1)
+}
+
+func (x DBProducts) InterpolateLin2(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
+	return x.InterpolateLin(productSerial, ankat.Chan2)
+}
