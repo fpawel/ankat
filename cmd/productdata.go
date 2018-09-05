@@ -19,7 +19,7 @@ type productData struct {
 }
 
 func (x productData) value(k ankat.ProductVar) (float64, error) {
-	v,ok := x.db.CurrentPartyProductValue(x.product.Serial, k)
+	v,ok := x.db.CurrentParty().ProductValue(x.product.Serial, k)
 	if ok {
 		return v, nil
 	}

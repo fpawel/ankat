@@ -36,6 +36,10 @@ type SectPoint struct{
 	Point
 }
 
+type SectVar struct{
+	Sect
+	Var
+}
 
 const (
 

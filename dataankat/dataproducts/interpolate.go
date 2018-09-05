@@ -15,7 +15,7 @@ func interpolate(xs [] numeth.Coordinate)([]float64, error) {
 }
 
 func (x DBProducts) currentProductValue(p ankat.ProductSerial, k ankat.ProductVar) (float64, error) {
-	v,ok := x.CurrentPartyProductValue(p, k)
+	v,ok := x.CurrentParty().ProductValue(p, k)
 	if ok {
 		return v, nil
 	}
@@ -30,10 +30,10 @@ func (x DBProducts) SetSectCoefficients(productSerial ankat.ProductSerial, sect 
 
 
 func (x DBProducts) InterpolateLin(productSerial ankat.ProductSerial, chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	points := chanel.LinPoints(x.IsCO2())
+	points := chanel.LinPoints(x.CurrentParty().IsCO2())
 	xs = make([]numeth.Coordinate, len(points))
 	for i, pt := range points {
-		xs[i].Y = x.CurrentPartyVerificationGasConcentration(pt.GasCode)
+		xs[i].Y = x.CurrentParty().VerificationGasConcentration(pt.GasCode)
 		xs[i].X, err  = x.currentProductValue(productSerial, pt.ProductVar)
 		if err != nil {
 			return

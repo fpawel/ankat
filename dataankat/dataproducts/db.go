@@ -32,6 +32,19 @@ type DBProducts struct {
 	DB *sqlx.DB
 }
 
+type ScalePosition string
+type TemperaturePosition string
+
+const (
+	ConcentrationScaleBegin ScalePosition = "B"
+	ConcentrationScaleMidle ScalePosition = "M"
+	ConcentrationScaleEnd ScalePosition = "E"
+
+	HighTemperature TemperaturePosition = "H"
+	LowTemperature TemperaturePosition = "L"
+	NormalTemperature TemperaturePosition = "N"
+)
+
 func MustOpen(fileName string) DBProducts {
 	return DBProducts{dbutils.MustOpen(fileName, "sqlite3", SQLAnkat) }
 }
@@ -69,101 +82,6 @@ WHERE party_id = ? AND product_serial=? AND var = ? AND section = ? AND point = 
 	return
 }
 
-func (x DBProducts) CurrentPartyID() (currentPartyID ankat.PartyID) {
-	dbutils.MustGet(x.DB, &currentPartyID, `SELECT party_id FROM current_party`)
-	return
-}
-
-func (x DBProducts) CurrentPartyProductValue(serial ankat.ProductSerial, p ankat.ProductVar) (float64, bool) {
-	return x.ProductValue(x.CurrentPartyID(), serial, p)
-}
-
-func (x DBProducts) SetCurrentPartyProductValue(serial ankat.ProductSerial, p ankat.ProductVar, value float64) {
-	x.DB.MustExec(`
-INSERT OR REPLACE INTO product_value (party_id, product_serial, section, point, var, value)
-VALUES ((SELECT party_id FROM current_party), ?, ?, ?, ?, ?); `, serial, p.Sect, p.Point, p.Var, value)
-}
-
-
-func (x DBProducts) CurrentPartyValue(name string) ( value float64) {
-	dbutils.MustGet(x.DB, &value, "SELECT " + name +" FROM current_party;")
-	return
-}
-
-func (x DBProducts) CurrentPartyValueStr(name string) (value string) {
-	dbutils.MustGet(x.DB, &value, "SELECT " + name +" FROM current_party;" )
-	return
-}
-
-func (x DBProducts) CurrentPartyScaleCode(c ankat.AnkatChan) float64{
-	scale := x.CurrentPartyValue( fmt.Sprintf("scale%d", c))
-	switch scale {
-	case 2:
-		return 2
-	case 5:
-		return 6
-	case 10:
-		return 7
-	case 100:
-		return 21
-	}
-	panic(fmt.Sprintf("unknown scale: %v: %v", c, scale ))
-}
-
-func (x DBProducts) CurrentPartyUnitsCode(c ankat.AnkatChan) float64{
-	units := x.CurrentPartyValueStr( fmt.Sprintf("units%d", c))
-	switch units {
-	case "объемная доля, %":
-		return 3
-	case "%, НКПР":
-		return 4
-	}
-	panic(fmt.Sprintf("unknown units: %v, %v", c, units ))
-}
-
-func (x DBProducts) CurrentPartyGasTypeCode(c ankat.AnkatChan) float64{
-	gas := x.CurrentPartyValueStr( fmt.Sprintf("gas%d", c))
-	scale := x.CurrentPartyValue(fmt.Sprintf("scale%d", c))
-	switch gas {
-	case "CH₄":
-		return 16
-	case "C₃H₈":
-		return 14
-	case "∑CH":
-		return 15
-	case "CO₂":
-		switch scale {
-		case 2:
-			return 11
-		case 5:
-			return 12
-		case 10:
-			return 13
-		}
-	}
-	panic(fmt.Sprintf("unknown gas and scale: %v: %v, %v", c, gas, scale ))
-}
-
-func (x DBProducts) AnkatChannels() (xs []ankat.AnkatChan){
-	xs = append(xs, ankat.Chan1)
-	if x.IsTwoConcentrationChannels() {
-		xs = append(xs, ankat.Chan2)
-	}
-	return
-}
-
-func (x DBProducts) IsTwoConcentrationChannels() bool {
-	return x.CurrentPartyValue("sensors_count") == 2
-}
-
-func (x DBProducts) IsPressureSensor() bool {
-	return x.CurrentPartyValue("pressure_sensor") == 1
-}
-
-func (x DBProducts) IsCO2() bool {
-	return x.CurrentPartyValueStr("gas1") == "CO₂"
-}
-
 func (x DBProducts) CheckedVars() (vars []Var) {
 	dbutils.MustSelect(x.DB, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
 	return
@@ -187,45 +105,6 @@ func (x DBProducts) Coefficients() (coefficients []Coefficient) {
 func (x DBProducts) CheckedCoefficients() (coefficients []Coefficient) {
 	dbutils.MustSelect(x.DB, &coefficients, `SELECT * FROM coefficient_enumerated WHERE checked =1`)
 	return
-}
-
-func (x DBProducts) ProductsCount() (n int) {
-	dbutils.MustGet(x.DB, &n, `SELECT count(*) FROM current_party_products`)
-	return
-}
-
-func (x DBProducts) Products() (products []Product) {
-	dbutils.MustSelect(x.DB, &products, `SELECT * FROM current_party_products_config;`)
-	return
-}
-
-func (x DBProducts) CheckedProducts() (products []Product) {
-	dbutils.MustSelect(x.DB, &products,
-		`SELECT * FROM current_party_products_config WHERE checked=1;`)
-	return
-}
-
-func (x DBProducts) Product(n int) (p Product) {
-	dbutils.MustGet(x.DB, &p, `SELECT * FROM current_party_products_config WHERE ordinal = $1;`, n)
-	return
-}
-
-func (x DBProducts) SetCoefficientValue(productSerial ankat.ProductSerial, coefficient ankat.Coefficient, value float64) {
-	x.DB.MustExec(`
-INSERT OR REPLACE INTO product_coefficient_value (party_id, product_serial, coefficient_id, value)
-VALUES ((SELECT party_id FROM current_party),
-        $1, $2, $3); `, productSerial, coefficient, value)
-}
-
-func (x DBProducts) CoefficientValue(productSerial ankat.ProductSerial, coefficient ankat.Coefficient) (float64, bool) {
-	var xs []float64
-	dbutils.MustSelect(x.DB, &xs, `
-SELECT value FROM current_party_coefficient_value 
-WHERE product_serial=$1 AND coefficient_id = $2;`, productSerial, coefficient)
-	if len(xs) > 0 {
-		return xs[0], true
-	}
-	return 0, false
 }
 
 
@@ -295,10 +174,7 @@ WHERE party_id = ?;
 	return
 }
 
-func (x DBProducts) CurrentPartyInfo() PartyInfo {
-	return x.PartyInfo(x.CurrentPartyID())
+func (x DBProducts) CurrentParty() DBCurrentParty  {
+	return DBCurrentParty{x}
 }
 
-func (x DBProducts) CurrentPartyVerificationGasConcentration(gas ankat.GasCode) float64 {
-	return x.CurrentPartyValue(fmt.Sprintf("cgas%d", gas))
-}

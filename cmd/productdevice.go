@@ -55,7 +55,22 @@ func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
 		}
-		x.db.SetCurrentPartyProductValue(x.product.Serial, pv, value)
+		x.db.CurrentParty().SetProductValue(x.product.Serial, pv, value)
+		x.writeInfof("сохранение: %s = %v", s, value)
+	}
+	return nil
+}
+
+func (x productDevice) fixMainError(vars []ankat.ProductVar) error {
+	for _, pv := range vars {
+		value, err := x.readVar(pv.Var)
+
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.db.VarName(pv.Var), pv.Point)
+
+		if err != nil {
+			return errors.Wrapf(err, "сохранение: %s", s)
+		}
+		x.db.CurrentParty().SetProductValue(x.product.Serial, pv, value)
 		x.writeInfof("сохранение: %s = %v", s, value)
 	}
 	return nil
@@ -128,16 +143,16 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 
 func (x productDevice) writeInitCoefficients() error {
 
-
+	p := x.db.CurrentParty()
 
 	xs := CoefficientValues{
 		2: float64(time.Now().Year()),
 
-		5: x.db.CurrentPartyUnitsCode(ankat.Chan1),
-		6: x.db.CurrentPartyGasTypeCode(ankat.Chan1),
-		7: x.db.CurrentPartyScaleCode(ankat.Chan1),
-		10: x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen),
-		11: x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End),
+		5: p.UnitsCode(ankat.Chan1),
+		6: p.GasTypeCode(ankat.Chan1),
+		7: p.ScaleCode(ankat.Chan1),
+		10: p.VerificationGasConcentration(ankat.GasNitrogen),
+		11: p.VerificationGasConcentration(ankat.GasChan1End),
 
 		23: 0,
 		24: 1,
@@ -156,11 +171,11 @@ func (x productDevice) writeInitCoefficients() error {
 		46: 1,
 		47: 0,
 
-		14: x.db.CurrentPartyUnitsCode(ankat.Chan2),
-		15: x.db.CurrentPartyGasTypeCode(ankat.Chan2),
-		16: x.db.CurrentPartyScaleCode(ankat.Chan2),
-		19: x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen),
-		20: x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End),
+		14: p.UnitsCode(ankat.Chan2),
+		15: p.GasTypeCode(ankat.Chan2),
+		16: p.ScaleCode(ankat.Chan2),
+		19: p.VerificationGasConcentration(ankat.GasNitrogen),
+		20: p.VerificationGasConcentration(ankat.GasChan2End),
 		33: 0,
 		34: 1,
 		35: 0,

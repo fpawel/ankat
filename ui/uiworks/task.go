@@ -19,6 +19,12 @@ type Action func() error
 
 var errorInterrupted = errors.New("выполнение прервано")
 
+const (
+	csUncheckedNormal = iota
+	csUncheckedPressed
+	csCheckedNormal
+)
+
 func (x *Task) Root() (root *Task) {
 	root = x
 	for root.parent != nil {
@@ -40,19 +46,19 @@ func (x *Task) Descendants() []*Task {
 
 func (x *Task) Checked(dbConfig *sqlx.DB) bool {
 	checkState := x.CheckState(dbConfig)
-	return checkState != "csUncheckedNormal" && checkState != "csUncheckedPressed"
+	return checkState != csUncheckedNormal && checkState != csUncheckedPressed
 }
 
-func (x *Task) CheckState(dbConfig *sqlx.DB) (checkState string) {
+func (x *Task) CheckState(dbConfig *sqlx.DB) (checkState int) {
 
-	var xs []string
+	var xs []int
 
 	err := dbConfig.Select(&xs, `SELECT checked FROM work_checked WHERE work_order = $1;`, x.ordinal)
 	if err != nil {
 		panic(err)
 	}
 	if len(xs) == 0 {
-		checkState = "csCheckedNormal"
+		checkState = csCheckedNormal
 	} else {
 		checkState = xs[0]
 	}

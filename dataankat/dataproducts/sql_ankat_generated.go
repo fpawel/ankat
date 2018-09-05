@@ -132,13 +132,13 @@ CREATE VIEW IF NOT EXISTS party_info AS
 
 CREATE TABLE IF NOT EXISTS main_error_source (
   party_id       INTEGER                 NOT NULL,
-  product_serial REAL                    NOT NULL,
+  product_serial INTEGER                 NOT NULL,
 
-  sensor CHECK (sensor IN (1, 2))        NOT NULL,
-  scale CHECK (scale IN ('B', 'M', 'E')) NOT NULL,
-  temp CHECK (temp IN ('L', 'N', 'H'))   NOT NULL,
+  sensor CHECK (sensor IN (1, 2))        ,
+  scale CHECK (scale IN ('B', 'M', 'E')) ,
+  temp CHECK (temp IN ('L', 'N', 'H'))   ,
 
-  value          REAL                    NOT NULL CHECK (typeof(value) IN ('real', 'integer')),
+  value          REAL                    CHECK (typeof(value) IN ('real', 'integer')),
 
   UNIQUE (party_id, product_serial, sensor, scale, temp),
 

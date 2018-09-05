@@ -78,11 +78,11 @@ func (x app) runReadVarsWork() {
 
 		for {
 
-			if len(x.db.CheckedProducts()) == 0 {
+			if len(x.db.CurrentParty().CheckedProducts()) == 0 {
 				return errors.New("не выбраны приборы")
 			}
 
-			for _, p := range x.db.CheckedProducts() {
+			for _, p := range x.db.CurrentParty().CheckedProducts() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
@@ -148,7 +148,7 @@ func (x app) runWriteCoefficientsWork() {
 
 func (x app) doEachProductData(w func(p productData)) {
 
-	for _, p := range x.db.CheckedProducts() {
+	for _, p := range x.db.CurrentParty().CheckedProducts() {
 		w(productData{
 			product:  p,
 			pipe:     x.delphiApp,
@@ -159,11 +159,11 @@ func (x app) doEachProductData(w func(p productData)) {
 }
 
 func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice) error) error {
-	if len(x.db.CheckedProducts()) == 0 {
+	if len(x.db.CurrentParty().CheckedProducts()) == 0 {
 		return errors.New("не выбраны приборы")
 	}
 
-	for _, p := range x.db.CheckedProducts() {
+	for _, p := range x.db.CurrentParty().CheckedProducts() {
 		if x.uiWorks.Interrupted() {
 			return errors.New("прервано")
 		}
@@ -200,7 +200,7 @@ func (x app) doProductDevice(p dataproducts.Product, errorLogger errorLogger, w 
 func (x app) doDelayWithReadProducts(what string, duration time.Duration) error {
 	x.db.CreateNewSeries()
 	vars := ankat.MainVars1()
-	if x.db.IsTwoConcentrationChannels() {
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		vars = append(vars, ankat.MainVars2()...)
 	}
 	iV, iP := 0, 0
@@ -213,7 +213,7 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 	productErrors := map[ProductError]struct{}{}
 
 	return x.uiWorks.Delay(what, duration, func() error {
-		products := x.db.CheckedProducts()
+		products := x.db.CurrentParty().CheckedProducts()
 		if len(products) == 0 {
 			return errors.New(what + ": " + "не отмечено ни одного прибора")
 		}

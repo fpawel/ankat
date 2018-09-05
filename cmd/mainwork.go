@@ -8,23 +8,26 @@ import (
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"math"
+	"os"
 	"time"
 )
 
 type interpolateSectFunc func(ankat.ProductSerial) ([]float64, []numeth.Coordinate, error)
 
-func (x app) mainWork() (result uiworks.Work) {
+func (x app) mainWork()  uiworks.Work {
 	t20gc := func() float64 {
 		return 20
 	}
 
+	currPar := x.db.CurrentParty()
+
 	workTemperature := uiworks.L("Термокомпенсация",
 		uiworks.L("Снятие",
 			x.workTemperaturePoint("Низкая температура", func() float64 {
-				return x.db.CurrentPartyValue("t-")
+				return currPar.Value("t-")
 			}, 0),
 			x.workTemperaturePoint("Высокая температура", func() float64 {
-				return x.db.CurrentPartyValue("t+")
+				return currPar.Value("t+")
 			}, 2),
 			x.workTemperaturePoint("НКУ", t20gc, 1),
 		),
@@ -49,7 +52,11 @@ func (x app) mainWork() (result uiworks.Work) {
 		),
 	)
 
-	if x.db.IsTwoConcentrationChannels() {
+	//workMainError := uiworks.L( "Проверка" )
+
+
+
+	if currPar.IsTwoConcentrationChannels() {
 
 		workTemperature.Children[1].AddChildren(
 			x.workCalculateSect(ankat.T02, x.db.InterpolateT01),
@@ -66,7 +73,7 @@ func (x app) mainWork() (result uiworks.Work) {
 			x.workWriteSectCoefficients(ankat.Lin2) )
 	}
 
-	if x.db.IsPressureSensor() {
+	if currPar.IsPressureSensor() {
 		workTemperature.Children[1].AddChildren(
 			x.workCalculateSect(ankat.PT, x.db.InterpolatePT))
 		workTemperature.Children[2].AddChildren(
@@ -75,7 +82,7 @@ func (x app) mainWork() (result uiworks.Work) {
 
 
 
-	result = uiworks.L("Настройка Анкат",
+	return uiworks.L("Настройка Анкат",
 		x.workHoldTemperature("НКУ", t20gc),
 		uiworks.S("Корректировка температуры CPU", func() error {
 			portTemperature, err := x.comport("comport_temperature")
@@ -122,7 +129,7 @@ func (x app) mainWork() (result uiworks.Work) {
 				return errors.Wrap(err,
 					"не удалось выполнить команду для нормировки канала 1")
 			}
-			if x.db.IsTwoConcentrationChannels() {
+			if x.db.CurrentParty().IsTwoConcentrationChannels() {
 				err := x.sendCmd(9, 100)
 				return errors.Wrap(err,
 					"не удалось выполнить команду для нормировки канала 2")
@@ -136,12 +143,12 @@ func (x app) mainWork() (result uiworks.Work) {
 					return errors.Wrap(err,
 						"не удалось продуть азот")
 				}
-				nitrogenConcentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasNitrogen)
+				nitrogenConcentration := currPar.VerificationGasConcentration(ankat.GasNitrogen)
 				if err := x.sendCmd(1, nitrogenConcentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки начала шкалы канала 1")
 				}
-				if x.db.IsTwoConcentrationChannels() {
+				if currPar.IsTwoConcentrationChannels() {
 					if err := x.sendCmd(4, nitrogenConcentration); err != nil {
 						return errors.Wrap(err,
 							"не удалось выполнить команду калибровки начала шкалы канала 2")
@@ -156,17 +163,17 @@ func (x app) mainWork() (result uiworks.Work) {
 					return errors.Wrap(err,
 						"не удалось продуть конец шкалы канала 1")
 				}
-				concentration := x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan1End)
+				concentration := currPar.VerificationGasConcentration(ankat.GasChan1End)
 				if err := x.sendCmd(2, concentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки чувствительности канала 1")
 				}
-				if x.db.IsTwoConcentrationChannels() {
+				if x.db.CurrentParty().IsTwoConcentrationChannels() {
 					if err := x.blowGas(ankat.GasChan2End); err != nil {
 						return errors.Wrap(err,
 							"не удалось продуть конец шкалы канала 2")
 					}
-					concentration = x.db.CurrentPartyVerificationGasConcentration(ankat.GasChan2End)
+					concentration = currPar.VerificationGasConcentration(ankat.GasChan2End)
 					if err := x.sendCmd(5, concentration); err != nil {
 						return errors.Wrap(err,
 							"не удалось выполнить команду калибровки чувствительности канала 2")
@@ -186,7 +193,6 @@ func (x app) mainWork() (result uiworks.Work) {
 
 		workTemperature,
 	)
-	return
 }
 
 func (x *app) workCalculateSect(sect ankat.Sect, interpolateFunc interpolateSectFunc) (result uiworks.Work) {
@@ -246,7 +252,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 			Sect: ankat.T01, Var: ankat.Var2Ch1,
 		},
 	}
-	if x.db.IsTwoConcentrationChannels() {
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.T02, Var: ankat.TppCh2,
 		}, ankat.ProductVar{
@@ -254,7 +260,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 		})
 	}
 
-	if x.db.IsPressureSensor() {
+	if x.db.CurrentParty().IsPressureSensor() {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.PT, Var: ankat.VdatP,
 		}, ankat.ProductVar{
@@ -277,7 +283,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 		}),
 	)
 
-	if x.db.IsTwoConcentrationChannels() {
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		r.AddChildren(
 			x.workBlowGas(ankat.GasChan2End),
 			workSave(ankat.GasChan2End, []ankat.ProductVar{
@@ -301,11 +307,11 @@ func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
 		ankat.GasNitrogen,
 		ankat.GasChan1Middle1,
 	}
-	if x.db.IsCO2() {
+	if x.db.CurrentParty().IsCO2() {
 		gases = append(gases, ankat.GasChan1Middle2)
 	}
 	gases = append(gases, ankat.GasChan1End)
-	if x.db.IsTwoConcentrationChannels() {
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		gases = append(gases, ankat.GasChan2Middle)
 		gases = append(gases, ankat.GasChan2End)
 	}
@@ -345,7 +351,7 @@ func (x app) workNorming() uiworks.Work {
 		if err := x.sendCmd(8, 100); err != nil {
 			return err
 		}
-		if x.db.IsTwoConcentrationChannels() {
+		if x.db.CurrentParty().IsTwoConcentrationChannels() {
 			return x.sendCmd(9, 100)
 		}
 		return nil
@@ -362,4 +368,88 @@ func (x app) workBlowGas(gas ankat.GasCode) uiworks.Work {
 	return uiworks.S(fmt.Sprintf("Продувка %s", gas.Description()), func() error {
 		return x.blowGas(gas)
 	})
+}
+
+func (x *app) workMainErrorTemperaturePoint(what string, temperature func() float64, point ankat.Point) (r uiworks.Work) {
+
+	r = uiworks.L(what,
+		x.workHoldTemperature(what, temperature),
+	)
+	os.ErrClosed = nil
+
+	for i,gas := range []ankat.GasCode{ankat.GasNitrogen, ankat.GasChan1Middle1, ankat.GasChan1End} {
+		r.AddChild(uiworks.S(gas.Description(), func() error {
+			if err := x.blowGas(gas); err != nil {
+				return err
+			}
+			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
+				return p.fixVarsValues([]ankat.ProductVar{
+					{
+						Point:ankat.Point(i),
+						Var:ankat.CoutCh1,
+					},
+				})
+			})
+
+		}))
+	}
+
+	workSave := func(gas ankat.GasCode, vars []ankat.ProductVar) uiworks.Work {
+		for i := range vars {
+			vars[i].Point = point
+		}
+		s := ""
+		for _, a := range vars {
+			if s != "" {
+				s += ", "
+			}
+			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.db.VarName(a.Var))
+		}
+
+		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s", gas.Description(), s), func(p productDevice) error {
+			return p.fixVarsValues(vars)
+		})
+	}
+
+	nitrogenVars := []ankat.ProductVar{
+		{
+			Sect: ankat.T01, Var: ankat.TppCh1,
+		},
+		{
+			Sect: ankat.T01, Var: ankat.Var2Ch1,
+		},
+	}
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
+		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
+			Sect: ankat.T02, Var: ankat.TppCh2,
+		}, ankat.ProductVar{
+			Sect: ankat.T02, Var: ankat.Var2Ch2,
+		})
+	}
+
+	if x.db.CurrentParty().IsPressureSensor() {
+		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
+			Sect: ankat.PT, Var: ankat.VdatP,
+		}, ankat.ProductVar{
+			Sect: ankat.PT, Var: ankat.TppCh1,
+		})
+	}
+
+
+
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
+		r.AddChildren(
+			x.workBlowGas(ankat.GasChan2End),
+			workSave(ankat.GasChan2End, []ankat.ProductVar{
+				{
+					Sect: ankat.TK2, Var: ankat.TppCh2,
+				},
+				{
+					Sect: ankat.TK2, Var: ankat.Var2Ch2,
+				},
+			}))
+	}
+	r.AddChild(x.workBlowGas(ankat.GasNitrogen))
+
+	return
 }

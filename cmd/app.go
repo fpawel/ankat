@@ -12,7 +12,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -56,92 +55,58 @@ func runApp() {
 		}
 	}
 
-
-
-
-	//x.db.EnsurePartyExists()
-
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
-	x.delphiApp.Handle("CURRENT_WORK_STOP", func([]byte) interface {}{
-		x.uiWorks.Interrupt()
-		for _,serialPort := range x.comports{
-			serialPort.comport.Interrupt()
-		}
-		return nil
-	})
-
-	x.delphiApp.Handle("CURRENT_WORK_CHECKED_CHANGED", func(bytes []byte) interface{}{
-		var v struct {
-			Ordinal    int
-			CheckState string
-		}
-		mustUnmarshalJson(bytes, &v)
-		x.db.DBConfig.DB.MustExec(`INSERT OR REPLACE INTO work_checked VALUES ($1, $2);`,
-			v.Ordinal, v.CheckState)
-		return nil
-	})
-
-	x.delphiApp.Handle("RUN_MAIN_WORK", func(b []byte) interface {}{
-		n, err := strconv.ParseInt(string(b), 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		x.runWork(int(n), x.mainWork())
-		return nil
-	})
-
-	x.delphiApp.Handle("READ_VARS", func([]byte) interface {} {
-		x.runReadVarsWork()
-		return nil
-	})
-	x.delphiApp.Handle("READ_COEFFICIENTS", func([]byte) interface {}{
-		x.runReadCoefficientsWork()
-		return nil
-	})
-
-	x.delphiApp.Handle("WRITE_COEFFICIENTS", func([]byte) interface {}{
-		x.runWriteCoefficientsWork()
-		return nil
-	})
-
-	x.delphiApp.Handle("MODBUS_CMD", func(b []byte) interface {}{
-		var a struct {
-			Cmd uint16
-			Arg float64
-		}
-		mustUnmarshalJson(b, &a)
-		x.runWork(0, uiworks.S("Отправка команды", func() error {
-			return x.sendCmd(a.Cmd, a.Arg)
-		}))
-		return nil
-	})
-
-	x.delphiApp.Handle("SEND_SET_WORK_MODE", func(b []byte) interface {} {
-		s := string(b)
-		s = strings.Replace(s, ",", ".", -1)
-		mode, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			x.delphiApp.Send("END_WORK", struct {
-				Name, Error string
-			}{"Отправка команды", err.Error()})
-		} else {
-			x.runWork(0, x.workSendSetWorkMode(mode))
-		}
-		return nil
-	})
-
-	x.delphiApp.Handle("CURRENT_WORKS", func(bytes []byte) interface {} {
-		return x.mainWork().Task().Info(x.db.DBProducts.DB)
-	})
-
-	x.delphiApp.Handle("PARTY_INFO", func(bytes []byte) interface {} {
-		partyID := ankat.PartyID(mustParseInt64(bytes))
-		str := view.Party( x.db.PartyInfo(partyID), x.db.VarName )
-		return str
-	})
-
-
+	for msg,fun := range map[string] func([]byte) interface{} {
+		"CURRENT_WORK_STOP":  func([]byte) interface {}{
+			x.uiWorks.Interrupt()
+			for _,serialPort := range x.comports{
+				serialPort.comport.Interrupt()
+			}
+			return nil
+		},
+		"RUN_MAIN_WORK": func(b []byte) interface {}{
+			n, err := strconv.ParseInt(string(b), 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			x.runWork(int(n), x.mainWork())
+			return nil
+		},
+		"READ_VARS": func([]byte) interface {} {
+			x.runReadVarsWork()
+			return nil
+		},
+		"READ_COEFFICIENTS": func([]byte) interface {}{
+			x.runReadCoefficientsWork()
+			return nil
+		},
+		"WRITE_COEFFICIENTS": func([]byte) interface {}{
+			x.runWriteCoefficientsWork()
+			return nil
+		},
+		"MODBUS_CMD": func(b []byte) interface {}{
+			var a struct {
+				Cmd uint16
+				Arg float64
+			}
+			mustUnmarshalJson(b, &a)
+			x.runWork(0, uiworks.S("Отправка команды", func() error {
+				return x.sendCmd(a.Cmd, a.Arg)
+			}))
+			return nil
+		},
+		"CURRENT_WORKS": func(bytes []byte) interface {} {
+			return x.mainWork().Task().Info(x.db.DBProducts.DB)
+		},
+		"PARTY_INFO": func(bytes []byte) interface {} {
+			partyID := ankat.PartyID(mustParseInt64(bytes))
+			str := view.Party( x.db.PartyInfo(partyID), x.db.VarName )
+			return str
+		},
+	} {
+		x.delphiApp.Handle(msg, fun)
+	}
 
 	fmt.Print("peer: connecting...")
 	if err := x.delphiApp.Connect(); err != nil {
