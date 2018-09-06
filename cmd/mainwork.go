@@ -4,22 +4,39 @@ import (
 	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/numeth"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
-	"math"
 	"os"
 	"time"
 )
 
-type interpolateSectFunc func(ankat.ProductSerial) ([]float64, []numeth.Coordinate, error)
-
-func (x app) mainWork()  uiworks.Work {
+func (x app) mainWork() uiworks.Work {
 	t20gc := func() float64 {
 		return 20
 	}
 
 	currPar := x.db.CurrentParty()
+
+	workInterpolateSect := func(sect ankat.Sect) uiworks.Work {
+
+		return uiworks.S(fmt.Sprintf("%s: расчёт к-тов %s", sect, sect.CoefficientsStr()),
+			func() error {
+				x.doEachProductData(func(p productData) {
+					p.interpolateSect(sect)
+				})
+				return nil
+			})
+	}
+
+	workWriteSectCoefficients := func(sect ankat.Sect) uiworks.Work {
+		return uiworks.S(fmt.Sprintf("%s: ввод к-тов %s", sect, sect.CoefficientsStr()), func() error {
+			return x.doEachProductDevice(x.uiWorks.WriteError,
+				func(p productDevice) error {
+					return p.writeSectCoefficients(sect)
+				})
+			return nil
+		})
+	}
 
 	workTemperature := uiworks.L("Термокомпенсация",
 		uiworks.L("Снятие",
@@ -32,55 +49,51 @@ func (x app) mainWork()  uiworks.Work {
 			x.workTemperaturePoint("НКУ", t20gc, 1),
 		),
 		uiworks.L("Расчёт",
-			x.workCalculateSect(ankat.T01, x.db.InterpolateT01),
-			x.workCalculateSect(ankat.TK1, x.db.InterpolateTK1),
+			workInterpolateSect(ankat.T01),
+			workInterpolateSect(ankat.TK1),
 		),
 
 		uiworks.L("Ввод",
-			x.workWriteSectCoefficients(ankat.T01),
-			x.workWriteSectCoefficients(ankat.TK1),
+			workWriteSectCoefficients(ankat.T01),
+			workWriteSectCoefficients(ankat.TK1),
 		),
 	)
 
 	workLin := uiworks.L("Линеаризация",
 		x.workSaveCalculateLinSourceValues(),
 		uiworks.L("Расчёт",
-			x.workCalculateSect(ankat.Lin1, x.db.InterpolateLin1),
+			workInterpolateSect(ankat.Lin1),
 		),
 		uiworks.L("Ввод",
-			x.workWriteSectCoefficients(ankat.Lin1),
+			workWriteSectCoefficients(ankat.Lin1),
 		),
 	)
 
 	//workMainError := uiworks.L( "Проверка" )
 
-
-
 	if currPar.IsTwoConcentrationChannels() {
 
 		workTemperature.Children[1].AddChildren(
-			x.workCalculateSect(ankat.T02, x.db.InterpolateT01),
-			x.workCalculateSect(ankat.TK2, x.db.InterpolateTK1), )
+			workInterpolateSect(ankat.T02),
+			workInterpolateSect(ankat.TK2))
 
 		workTemperature.Children[2].AddChildren(
-			x.workWriteSectCoefficients(ankat.T02),
-			x.workWriteSectCoefficients(ankat.TK2), )
+			workWriteSectCoefficients(ankat.T02),
+			workWriteSectCoefficients(ankat.TK2))
 
 		workLin.Children[1].AddChildren(
-			x.workCalculateSect(ankat.Lin2, x.db.InterpolateLin2) )
+			workInterpolateSect(ankat.Lin2))
 
 		workLin.Children[2].AddChildren(
-			x.workWriteSectCoefficients(ankat.Lin2) )
+			workWriteSectCoefficients(ankat.Lin2))
 	}
 
 	if currPar.IsPressureSensor() {
 		workTemperature.Children[1].AddChildren(
-			x.workCalculateSect(ankat.PT, x.db.InterpolatePT))
+			workInterpolateSect(ankat.PT))
 		workTemperature.Children[2].AddChildren(
-			x.workWriteSectCoefficients(ankat.PT))
+			workWriteSectCoefficients(ankat.PT))
 	}
-
-
 
 	return uiworks.L("Настройка Анкат",
 		x.workHoldTemperature("НКУ", t20gc),
@@ -195,36 +208,6 @@ func (x app) mainWork()  uiworks.Work {
 	)
 }
 
-func (x *app) workCalculateSect(sect ankat.Sect, interpolateFunc interpolateSectFunc) (result uiworks.Work) {
-
-	result = uiworks.S(fmt.Sprintf("%s: расчёт к-тов %s", sect, sect.CoefficientsStr()),
-		func() error {
-			x.doEachProductData(func(p productData) {
-				values, xs, err := interpolateFunc(p.product.Serial)
-				if err != nil {
-					p.writeErrorf("расчёт %v не удался: %v", sect, err)
-				} else {
-					for i := range values {
-						values[i] = math.Round(values[i]*1000000.) / 1000000.
-					}
-					p.writeInfof("расчёт %v: %v: [%s] = [%v]", sect, xs, sect.CoefficientsStr(), values)
-				}
-			})
-			return nil
-		} )
-	return
-}
-
-func (x *app) workWriteSectCoefficients(sect ankat.Sect)  uiworks.Work {
-
-	return uiworks.S(fmt.Sprintf("%s: ввод к-тов %s", sect, sect.CoefficientsStr()), func() error {
-		return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
-			return p.writeSectCoefficients(sect)
-		})
-		return nil
-	})
-}
-
 func (x *app) workTemperaturePoint(what string, temperature func() float64, point ankat.Point) (r uiworks.Work) {
 
 	workSave := func(gas ankat.GasCode, vars []ankat.ProductVar) uiworks.Work {
@@ -317,7 +300,7 @@ func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
 	}
 	for _, gas := range gases {
 		gas := gas
-		r.AddChild( uiworks.S(gas.Description(), func() error {
+		r.AddChild(uiworks.S(gas.Description(), func() error {
 			if err := x.blowGas(gas); err != nil {
 				return err
 			}
@@ -377,7 +360,7 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 	)
 	os.ErrClosed = nil
 
-	for i,gas := range []ankat.GasCode{ankat.GasNitrogen, ankat.GasChan1Middle1, ankat.GasChan1End} {
+	for i, gas := range []ankat.GasCode{ankat.GasNitrogen, ankat.GasChan1Middle1, ankat.GasChan1End} {
 		r.AddChild(uiworks.S(gas.Description(), func() error {
 			if err := x.blowGas(gas); err != nil {
 				return err
@@ -385,8 +368,8 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 			return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 				return p.fixVarsValues([]ankat.ProductVar{
 					{
-						Point:ankat.Point(i),
-						Var:ankat.CoutCh1,
+						Point: ankat.Point(i),
+						Var:   ankat.CoutCh1,
 					},
 				})
 			})
@@ -434,8 +417,6 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 			Sect: ankat.PT, Var: ankat.TppCh1,
 		})
 	}
-
-
 
 	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		r.AddChildren(

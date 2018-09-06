@@ -20,7 +20,7 @@ type Coefficients map[ankat.Coefficient]map[ankat.ProductSerial]float64
 
 type KeyStr struct {
 	Key string `db:"name"`
-	Str string `db:"value"`
+	Str string `db:"-"`
 }
 
 type ProductVarValues map[ankat.Sect]map[ankat.Var]map[ankat.Point]map[ankat.ProductSerial]float64

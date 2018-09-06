@@ -1,6 +1,7 @@
 package dataproducts
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/dataankat/dbutils"
@@ -32,21 +33,13 @@ type DBProducts struct {
 	DB *sqlx.DB
 }
 
-type ScalePosition string
-type TemperaturePosition string
 
-const (
-	ConcentrationScaleBegin ScalePosition = "B"
-	ConcentrationScaleMidle ScalePosition = "M"
-	ConcentrationScaleEnd ScalePosition = "E"
 
-	HighTemperature TemperaturePosition = "H"
-	LowTemperature TemperaturePosition = "L"
-	NormalTemperature TemperaturePosition = "N"
-)
 
-func MustOpen(fileName string) DBProducts {
-	return DBProducts{dbutils.MustOpen(fileName, "sqlite3", SQLAnkat) }
+func MustOpen(fileName string) (db DBProducts) {
+	db = DBProducts{dbutils.MustOpen(fileName, "sqlite3", ) }
+	db.DB.MustExec(SQLAnkat)
+	return
 }
 
 func (x DBProducts) PartyExists() (exists bool){
@@ -117,8 +110,28 @@ SELECT product_serial
 FROM product
 WHERE party_id = $1
 ORDER BY product_serial ASC;`, partyID)
+	{
+		rows, err := x.DB.DB.Query(`PRAGMA table_info(party);`)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var v KeyStr
+			var tmp sql.NullString
+			err := rows.Scan(&tmp, &v.Key, &tmp, &tmp, &tmp, &tmp)
+			if err != nil {
+				panic(err)
+			}
 
-	dbutils.MustSelect(x.DB, &party.Values, `SELECT name, value FROM party_value2 WHERE party_id = ?;`, partyID)
+			q := fmt.Sprintf( "SELECT %s FROM party WHERE party_id=%d", v.Key, partyID )
+			dbutils.MustGet(x.DB, &v.Str, q)
+
+			party.Values = append(party.Values, v)
+		}
+	}
+
+
 
 	var coefficients []struct {
 		Coefficient   ankat.Coefficient   `db:"coefficient_id"`

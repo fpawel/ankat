@@ -1,6 +1,7 @@
 package dbutils
 
 import (
+	"database/sql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -16,13 +17,20 @@ func MustSelect(db *sqlx.DB, dest interface{}, query string, args ...interface{}
 	}
 }
 
+func MustNamedExec(db *sqlx.DB, query string, arg interface{}) sql.Result {
+	r,err := db.NamedExec(query, arg)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
 
 
-func MustOpen(fileName, driverName, query string) (db *sqlx.DB) {
+
+func MustOpen(fileName, driverName string) (db *sqlx.DB) {
 	db = sqlx.MustConnect(driverName,  fileName)
 	if err := db.Ping(); err != nil {
 		panic(err)
 	}
-	db.MustExec(query)
 	return
 }

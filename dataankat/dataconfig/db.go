@@ -13,7 +13,8 @@ type DBConfig struct {
 
 func MustOpen(fileName string) DBConfig {
 
-	db := DBConfig{dbutils.MustOpen(fileName, "sqlite3", SQLConfig) }
+	db := DBConfig{dbutils.MustOpen(fileName, "sqlite3", ) }
+	db.DB.MustExec(SQLConfig)
 
 	for _,s := range []string{
 		"comport_products", "comport_gas", "comport_temperature",

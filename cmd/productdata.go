@@ -7,8 +7,8 @@ import (
 	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/numeth"
 	"github.com/fpawel/procmq"
+	"math"
 )
 
 type productData struct {
@@ -18,31 +18,24 @@ type productData struct {
 	db       dataankat.DBAnkat
 }
 
-func (x productData) value(k ankat.ProductVar) (float64, error) {
-	v,ok := x.db.CurrentParty().ProductValue(x.product.Serial, k)
-	if ok {
-		return v, nil
+func (x productData) productDB() dataproducts.DBCurrentProduct {
+	return dataproducts.DBCurrentProduct{
+		DB: x.db.DBProducts.DB,
+		ProductSerial: x.product.Serial,
 	}
-	return 0, fmt.Errorf("нет значения в точке %v", k)
 }
 
-func interpolate(xs [] numeth.Coordinate)([]float64, error) {
-	if coefficients, ok := numeth.InterpolationCoefficients(xs); ok {
-		return coefficients, nil
+func (x productData) interpolateSect(sect ankat.Sect)  {
+	coefficients, values, err := x.productDB().InterpolateSect(sect)
+
+	if err == nil {
+		for i := range coefficients {
+			coefficients[i] = math.Round(coefficients[i]*1000000.) / 1000000.
+		}
+		x.writeInfof("расчёт %v: %v: [%s] = [%v]", sect, coefficients, sect.CoefficientsStr(), values)
+	} else {
+		x.writeErrorf("расчёт %v не удался: %v", sect, err)
 	}
-	return nil, fmt.Errorf("не удалось выполнить интерполяцию: %v", xs)
-}
-
-func (x productData) calculateT0(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	return x.db.InterpolateT0(x.product.Serial, chanel)
-}
-
-func (x productData) calculateTK(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	return x.db.InterpolateTK(x.product.Serial, chanel)
-}
-
-func (x productData) calculateLin(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	return x.db.InterpolateLin(x.product.Serial, chanel)
 }
 
 func (x productData) writeInfo(str string) {

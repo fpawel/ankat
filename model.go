@@ -41,7 +41,22 @@ type SectVar struct{
 	Var
 }
 
+
+type ScalePosition string
+type TemperaturePosition string
+
+type ConcentrationUnits string
+
+type GasComponent string
+
 const (
+	ScaleBegin ScalePosition = "SCALE_BEGIN"
+	ScaleMiddle ScalePosition = "SCALE_MIDDLE"
+	ScaleEnd ScalePosition = "SCALE_END"
+
+	TemperatureHigh TemperaturePosition = "T_HIGH"
+	TemperatureLow TemperaturePosition = "T_LOW"
+	TemperatureNorm TemperaturePosition = "T_NORM"
 
 	Lin1 Sect = "LIN1"
 	Lin2 Sect = "LIN2"
@@ -53,6 +68,14 @@ const (
 	TK2 Sect = "TK2"
 
 	PT Sect = "PT"
+
+	UnitsNkpr ConcentrationUnits = "%, НКПР"
+	UnitsPercentVolumeFractions ConcentrationUnits = "объемная доля, %"
+
+	GasCH4 GasComponent = "CH₄"
+	GasC3H8 GasComponent = "C₃H₈"
+	GasSumCH GasComponent = "∑CH"
+	GasCO2 GasComponent = "CO₂"
 )
 
 const (
@@ -89,6 +112,8 @@ const (
 	Var2Ch2 Var = 690
 	Var3Ch2 Var = 692
 )
+
+
 
 
 func (x Sect) Description() string {

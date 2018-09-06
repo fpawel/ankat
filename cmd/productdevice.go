@@ -55,7 +55,7 @@ func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
 		}
-		x.db.CurrentParty().SetProductValue(x.product.Serial, pv, value)
+		x.productDB().SetValue(pv, value)
 		x.writeInfof("сохранение: %s = %v", s, value)
 	}
 	return nil
@@ -70,7 +70,7 @@ func (x productDevice) fixMainError(vars []ankat.ProductVar) error {
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
 		}
-		x.db.CurrentParty().SetProductValue(x.product.Serial, pv, value)
+		x.productDB().SetValue(pv, value)
 		x.writeInfof("сохранение: %s = %v", s, value)
 	}
 	return nil
@@ -90,7 +90,7 @@ func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value flo
 	if err == nil {
 		value, err = req.ParseBCDValue(bytes)
 		if err == nil {
-			x.db.SetCoefficientValue(x.product.Serial, coefficient, value)
+			x.productDB().SetCoefficientValue(coefficient, value)
 		}
 	}
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
@@ -242,7 +242,7 @@ func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
 }
 
 func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
-	v, exists := x.db.CoefficientValue(x.product.Serial, coefficient)
+	v, exists := x.productDB().CoefficientValue(coefficient)
 	if !exists {
 		x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, fmt.Sprintf(
 			"запись К%d: значение коэффициента не задано", coefficient))
@@ -303,7 +303,7 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	}
 	x.notifyConnected(err, "K%d:=%v", coefficient, float6(value))
 	if err == nil {
-		x.db.SetCoefficientValue(x.product.Serial, coefficient, float6(value))
+		x.productDB().SetCoefficientValue(coefficient, float6(value))
 		x.writeInfof("K%d:=%v", coefficient, value)
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, float6(value), err)

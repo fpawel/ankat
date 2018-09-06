@@ -14,45 +14,43 @@ func interpolate(xs [] numeth.Coordinate)([]float64, error) {
 	return nil, fmt.Errorf("не удалось выполнить интерполяцию: %v", xs)
 }
 
-func (x DBProducts) currentProductValue(p ankat.ProductSerial, k ankat.ProductVar) (float64, error) {
-	v,ok := x.CurrentParty().ProductValue(p, k)
+func (x DBCurrentProduct) value(k ankat.ProductVar) (float64, error) {
+	v,ok := x.Value(k)
 	if ok {
 		return v, nil
 	}
-	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, x.VarName(k.Var))
+	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, x.ProductsDB().VarName(k.Var))
 }
 
-func (x DBProducts) SetSectCoefficients(productSerial ankat.ProductSerial, sect ankat.Sect, values []float64) {
-	for i := range values{
-		x.SetCoefficientValue(productSerial, sect.Coefficient0() + ankat.Coefficient(i), values[i])
-	}
+func (x DBCurrentProduct) ProductsDB() DBProducts{
+	return DBProducts{x.DB}
 }
 
+func (x DBCurrentProduct) PartyDB() DBCurrentParty{
+	return DBCurrentParty{x.ProductsDB() }
+}
 
-func (x DBProducts) InterpolateLin(productSerial ankat.ProductSerial, chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	points := chanel.LinPoints(x.CurrentParty().IsCO2())
+func (x DBCurrentProduct) interpolateLin(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
+	points := chanel.LinPoints(x.PartyDB().IsCO2())
 	xs = make([]numeth.Coordinate, len(points))
 	for i, pt := range points {
-		xs[i].Y = x.CurrentParty().VerificationGasConcentration(pt.GasCode)
-		xs[i].X, err  = x.currentProductValue(productSerial, pt.ProductVar)
+		xs[i].Y = x.PartyDB().VerificationGasConcentration(pt.GasCode)
+		xs[i].X, err  = x.value(pt.ProductVar)
 		if err != nil {
 			return
 		}
 	}
 	coefficients, err  = interpolate(xs)
-	if err == nil {
-		x.SetSectCoefficients(productSerial, chanel.Lin(), coefficients)
-	}
 	return
 }
 
-func (x DBProducts) InterpolateT0(productSerial ankat.ProductSerial, chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
+func (x DBCurrentProduct) interpolateT0(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
 	ankat.MustValidChan(chanel)
 
 	for i:= ankat.Point(0); i<3; i++ {
 		var c numeth.Coordinate
 
-		c.X,err = x.currentProductValue(productSerial, ankat.ProductVar{
+		c.X,err = x.value(ankat.ProductVar{
 			Sect: chanel.T0(),
 			Var: chanel.Tpp(),
 			Point:i,
@@ -61,7 +59,7 @@ func (x DBProducts) InterpolateT0(productSerial ankat.ProductSerial, chanel anka
 			return
 		}
 
-		c.Y,err  = x.currentProductValue(productSerial,  ankat.ProductVar{
+		c.Y,err  = x.value(ankat.ProductVar{
 			Sect: chanel.T0(),
 			Var: chanel.Var2(),
 			Point:i,
@@ -73,19 +71,16 @@ func (x DBProducts) InterpolateT0(productSerial ankat.ProductSerial, chanel anka
 		xs = append(xs, c)
 	}
 	coefficients, err  = interpolate(xs)
-	if err == nil {
-		x.SetSectCoefficients(productSerial, chanel.T0(), coefficients)
-	}
 	return
 }
 
-func (x DBProducts) InterpolateTK(productSerial ankat.ProductSerial, chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
+func (x DBCurrentProduct) interpolateTK(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
 	ankat.MustValidChan(chanel)
 
 	for i:= ankat.Point(0); i<3; i++ {
 		var tpp, var2, var0 float64
 
-		tpp,err = x.currentProductValue(productSerial, ankat.ProductVar{
+		tpp,err = x.value(ankat.ProductVar{
 			Sect: chanel.TK(),
 			Var: chanel.Tpp(),
 			Point:i,
@@ -94,7 +89,7 @@ func (x DBProducts) InterpolateTK(productSerial ankat.ProductSerial, chanel anka
 			return
 		}
 
-		var2,err = x.currentProductValue(productSerial, ankat.ProductVar{
+		var2,err = x.value(ankat.ProductVar{
 			Sect: chanel.TK(),
 			Var: chanel.Var2(),
 			Point:i,
@@ -103,7 +98,7 @@ func (x DBProducts) InterpolateTK(productSerial ankat.ProductSerial, chanel anka
 			return
 		}
 
-		var0,err = x.currentProductValue(productSerial, ankat.ProductVar{
+		var0,err = x.value( ankat.ProductVar{
 			Sect: chanel.T0(),
 			Var: chanel.Var2(),
 			Point:i,
@@ -130,17 +125,14 @@ func (x DBProducts) InterpolateTK(productSerial ankat.ProductSerial, chanel anka
 	}
 
 	coefficients, err  = interpolate(xs)
-	if err == nil {
-		x.SetSectCoefficients(productSerial, chanel.TK(), coefficients)
-	}
 	return
 }
 
-func (x DBProducts) InterpolatePT(productSerial ankat.ProductSerial) (coefficients []float64, xs []numeth.Coordinate, err error) {
+func (x DBCurrentProduct) interpolatePT() (coefficients []float64, xs []numeth.Coordinate, err error) {
 	for i:= ankat.Point(0); i<3; i++ {
 		var c numeth.Coordinate
 
-		c.X,err = x.currentProductValue(productSerial, ankat.ProductVar{
+		c.X,err = x.value( ankat.ProductVar{
 			Sect: ankat.PT,
 			Var: ankat.TppCh1,
 			Point:i,
@@ -149,7 +141,7 @@ func (x DBProducts) InterpolatePT(productSerial ankat.ProductSerial) (coefficien
 			return
 		}
 
-		c.Y,err  = x.currentProductValue(productSerial,  ankat.ProductVar{
+		c.Y,err  = x.value(  ankat.ProductVar{
 			Sect: ankat.PT,
 			Var: ankat.VdatP,
 			Point:i,
@@ -160,32 +152,36 @@ func (x DBProducts) InterpolatePT(productSerial ankat.ProductSerial) (coefficien
 		xs = append(xs, c)
 	}
 	coefficients, err  = interpolate(xs)
-	if err == nil {
-		x.SetSectCoefficients(productSerial, ankat.PT, coefficients)
-	}
+
 	return
 }
 
-func (x DBProducts) InterpolateT01(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateT0(productSerial, ankat.Chan1)
+func (x DBCurrentProduct) InterpolateSect(sect ankat.Sect) ([]float64, []numeth.Coordinate, error) {
+	coefficients, xs, err := x.doInterpolateSect(sect)
+	if err == nil {
+		x.SetSectCoefficients( sect, coefficients)
+	}
+	return coefficients, xs, err
 }
 
-func (x DBProducts) InterpolateT02(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateT0(productSerial, ankat.Chan2)
+func (x DBCurrentProduct) doInterpolateSect(sect ankat.Sect) ([]float64, []numeth.Coordinate, error) {
+	switch sect {
+	case ankat.Lin1:
+		return x.interpolateLin(ankat.Chan1)
+	case ankat.Lin2:
+		return x.interpolateLin(ankat.Chan2)
+	case ankat.T01:
+		return x.interpolateT0(ankat.Chan1)
+	case ankat.TK1:
+		return x.interpolateTK(ankat.Chan1)
+	case ankat.T02:
+		return x.interpolateT0(ankat.Chan2)
+	case ankat.TK2:
+		return x.interpolateTK(ankat.Chan2)
+	case ankat.PT:
+		return x.interpolatePT()
+	default:
+		panic("unknown interpolate sect: " + sect)
+	}
 }
 
-func (x DBProducts) InterpolateTK1(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateTK(productSerial, ankat.Chan1)
-}
-
-func (x DBProducts) InterpolateTK2(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateTK(productSerial, ankat.Chan2)
-}
-
-func (x DBProducts) InterpolateLin1(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateLin(productSerial, ankat.Chan1)
-}
-
-func (x DBProducts) InterpolateLin2(productSerial ankat.ProductSerial) ([]float64, []numeth.Coordinate, error) {
-	return x.InterpolateLin(productSerial, ankat.Chan2)
-}

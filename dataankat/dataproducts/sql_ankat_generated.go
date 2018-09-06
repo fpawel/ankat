@@ -5,31 +5,31 @@ PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS party (
-  party_id   INTEGER PRIMARY KEY,
-  created_at TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  product_type_number INTEGER  DEFAULT 22 CHECK (product_type_number > 0),
+  party_id            INTEGER PRIMARY KEY,
+  created_at          TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+  product_type_number INTEGER                   DEFAULT 22 CHECK (product_type_number > 0),
 
-  sensors_count INTEGER DEFAULT 1 CHECK (sensors_count IN (1,2)),
+  sensors_count       INTEGER                   DEFAULT 1 CHECK (sensors_count IN (1, 2)),
 
-  pressure_sensor  DEFAULT 1 CHECK (pressure_sensor IN (0,1)),
+  pressure_sensor                               DEFAULT 1 CHECK (pressure_sensor IN (0, 1)),
 
-  cgas1 REAL DEFAULT 0,
-  cgas2 REAL DEFAULT 50,
-  cgas3 REAL DEFAULT 70,
-  cgas4 REAL DEFAULT 100,
-  cgas5 REAL DEFAULT 0.67,
-  cgas6 REAL DEFAULT 2,
+  cgas1               REAL                      DEFAULT 0,
+  cgas2               REAL                      DEFAULT 50,
+  cgas3               REAL                      DEFAULT 70,
+  cgas4               REAL                      DEFAULT 100,
+  cgas5               REAL                      DEFAULT 0.67,
+  cgas6               REAL                      DEFAULT 2,
 
-  temperature_minus REAL DEFAULT -30.,
-  temperature_plus REAL DEFAULT 45.,
+  temperature_minus   REAL                      DEFAULT -30.,
+  temperature_plus    REAL                      DEFAULT 45.,
 
 
-  gas1 TEXT DEFAULT 'CH₄',
-  gas2 TEXT DEFAULT 'CH₄',
-  scale1 REAL DEFAULT 100,
-  scale2 REAL DEFAULT 100,
-  units1 TEXT DEFAULT '%, НКПР',
-  units2 TEXT DEFAULT '%, НКПР'
+  gas1                TEXT                      DEFAULT 'CH₄',
+  gas2                TEXT                      DEFAULT 'CH₄',
+  scale1              REAL                      DEFAULT 100,
+  scale2              REAL                      DEFAULT 100,
+  units1              TEXT                      DEFAULT '%, НКПР',
+  units2              TEXT                      DEFAULT '%, НКПР'
 
 );
 
@@ -119,26 +119,26 @@ CREATE TABLE IF NOT EXISTS product_value (
 );
 
 CREATE VIEW IF NOT EXISTS party_info AS
-  SELECT *, cast(strftime('%Y', created_at) AS INT)                                 AS year,
-            cast(strftime('%m', created_at) AS INT)                                 AS month,
-            cast(strftime('%d', created_at) AS INT)                                 AS day,
-          p.product_type_number || ' ' || p.gas1 || ' ' || cast(p.scale1 AS INTEGER)
+  SELECT *, cast(strftime('%Y', created_at) AS INT)                                      AS year,
+            cast(strftime('%m', created_at) AS INT)                                      AS month,
+            cast(strftime('%d', created_at) AS INT)                                      AS day,
+            p.product_type_number || ' ' || p.gas1 || ' ' || cast(p.scale1 AS INTEGER)
               || (CASE p.sensors_count
                     WHEN 1 THEN ''
                     ELSE ' ' || p.gas2 || ' ' || cast(p.scale2 AS INTEGER)
-      END)                                                                               AS what,
+                END)                                                                     AS what,
             (SELECT exists(SELECT * FROM last_work_log w WHERE w.party_id = p.party_id)) AS has_log
   FROM party p;
 
 CREATE TABLE IF NOT EXISTS main_error_source (
-  party_id       INTEGER                 NOT NULL,
-  product_serial INTEGER                 NOT NULL,
+  party_id       INTEGER NOT NULL,
+  product_serial INTEGER NOT NULL,
 
-  sensor CHECK (sensor IN (1, 2))        ,
-  scale CHECK (scale IN ('B', 'M', 'E')) ,
-  temp CHECK (temp IN ('L', 'N', 'H'))   ,
+  sensor CHECK (sensor IN (1, 2)),
+  scale CHECK (scale IN ('SCALE_BEGIN', 'SCALE_MIDDLE', 'SCALE_END')),
+  temp CHECK (temp IN ('T_LOW', 'T_NORM', 'T_HIGH')),
 
-  value          REAL                    CHECK (typeof(value) IN ('real', 'integer')),
+  value          REAL CHECK (typeof(value) IN ('real', 'integer')),
 
   UNIQUE (party_id, product_serial, sensor, scale, temp),
 
@@ -148,24 +148,24 @@ CREATE TABLE IF NOT EXISTS main_error_source (
 );
 
 CREATE VIEW IF NOT EXISTS main_error1 AS
-  SELECT *, ( CASE a.sensor
-                      WHEN 1 THEN CASE a.scale
-                                    WHEN 'B' THEN p.cgas1
-                                    WHEN 'M' THEN p.cgas2
-                                    WHEN 'E' THEN p.cgas4 END
-                      WHEN 2 THEN CASE a.scale
-                                    WHEN 'B' THEN p.cgas1
-                                    WHEN 'M' THEN p.cgas5
-                                    WHEN 'E' THEN p.cgas6 END END) nominal,
-            ( CASE a.sensor
-                      WHEN 1 THEN p.units1
-                      WHEN 2 THEN p.units2 END)               AS              units,
+  SELECT *, (CASE a.sensor
+               WHEN 1 THEN CASE a.scale
+                             WHEN 'SCALE_BEGIN' THEN p.cgas1
+                             WHEN 'SCALE_MIDDLE' THEN p.cgas2
+                             WHEN 'SCALE_END' THEN p.cgas4 END
+               WHEN 2 THEN CASE a.scale
+                             WHEN 'SCALE_BEGIN' THEN p.cgas1
+                             WHEN 'SCALE_MIDDLE' THEN p.cgas5
+                             WHEN 'SCALE_END' THEN p.cgas6 END END) nominal,
             (CASE a.sensor
-                      WHEN 1 THEN p.gas1
-                      WHEN 2 THEN p.gas2 END)   AS              gas,
+               WHEN 1 THEN p.units1
+               WHEN 2 THEN p.units2 END) AS                         units,
             (CASE a.sensor
-                      WHEN 1 THEN p.scale1
-                      WHEN 2 THEN p.scale2 END) AS              scale_value
+               WHEN 1 THEN p.gas1
+               WHEN 2 THEN p.gas2 END)   AS                         gas,
+            (CASE a.sensor
+               WHEN 1 THEN p.scale1
+               WHEN 2 THEN p.scale2 END) AS                         scale_value
   FROM main_error_source a
          INNER JOIN party p ON p.party_id = a.party_id;
 
@@ -182,7 +182,7 @@ CREATE VIEW IF NOT EXISTS main_error2 AS
                                                                    WHEN 10. THEN 0.5
                         END
                     END
-                    END)                                      AS absolute_error_limit
+                    END) AS absolute_error_limit
   FROM main_error1 a;
 
 CREATE VIEW IF NOT EXISTS main_error3 AS
