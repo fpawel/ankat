@@ -22,13 +22,9 @@ type app struct {
 	uiWorks   uiworks.Runner
 	db        dataankat.DBAnkat
 	delphiApp *procmq.ProcessMQ
-	comports  map[string]comportState
+	comports  comport.Comports
 }
 
-type comportState struct {
-	comport *comport.Port
-	err     error
-}
 
 type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, text string)
 type errorLogger = func(productSerial ankat.ProductSerial, text string)
@@ -38,7 +34,7 @@ func runApp() {
 	x := &app{
 		db: dataankat.MustOpen(),
 		delphiApp: procmq.MustOpen("ANKAT"),
-		comports:  make(map[string]comportState),
+		comports:  comport.Comports{},
 	}
 	if !x.db.PartyExists(){
 		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
@@ -60,9 +56,7 @@ func runApp() {
 	for msg,fun := range map[string] func([]byte) interface{} {
 		"CURRENT_WORK_STOP":  func([]byte) interface {}{
 			x.uiWorks.Interrupt()
-			for _,serialPort := range x.comports{
-				serialPort.comport.Interrupt()
-			}
+			x.comports.Interrupt()
 			return nil
 		},
 		"RUN_MAIN_WORK": func(b []byte) interface {}{
@@ -101,7 +95,7 @@ func runApp() {
 		},
 		"PARTY_INFO": func(bytes []byte) interface {} {
 			partyID := ankat.PartyID(mustParseInt64(bytes))
-			str := view.Party( x.db.PartyInfo(partyID), x.db.VarName )
+			str := view.Party( x.db.Party(partyID), x.db.VarName )
 			return str
 		},
 	} {

@@ -3,30 +3,20 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat"
 	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
-	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/procmq"
 	"math"
 )
 
 type productData struct {
-	product  dataproducts.Product
-	pipe     *procmq.ProcessMQ
-	workCtrl uiworks.Runner
-	db       dataankat.DBAnkat
+	dataproducts.CurrentProduct
+	app *app
 }
 
-func (x productData) productDB() dataproducts.DBCurrentProduct {
-	return dataproducts.DBCurrentProduct{
-		DB: x.db.DBProducts.DB,
-		ProductSerial: x.product.Serial,
-	}
-}
 
 func (x productData) interpolateSect(sect ankat.Sect)  {
-	coefficients, values, err := x.productDB().InterpolateSect(sect)
+
+	coefficients, values, err := x.InterpolateSect(sect)
 
 	if err == nil {
 		for i := range coefficients {
@@ -38,18 +28,26 @@ func (x productData) interpolateSect(sect ankat.Sect)  {
 	}
 }
 
+func (x productData) writeLog(level dataworks.Level, str string) {
+	x.app.uiWorks.WriteLog(x.ProductSerial, level, str)
+}
+
+func (x productData) writeLogf(level dataworks.Level, format string, a ...interface{}) {
+	x.app.uiWorks.WriteLog(x.ProductSerial, level, fmt.Sprintf(format, a...))
+}
+
 func (x productData) writeInfo(str string) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Info, str)
+	x.writeLog(dataworks.Info, str)
 }
 
 func (x productData) writeInfof(format string, a ...interface{}) {
-	x.writeInfo(fmt.Sprintf(format, a...))
+	x.writeLogf(dataworks.Info, format, a... )
 }
 
 func (x productData) writeError(str string) {
-	x.workCtrl.WriteLog(x.product.Serial, dataworks.Error, str)
+	x.writeLog( dataworks.Error, str)
 }
 
 func (x productData) writeErrorf(format string, a ...interface{}) {
-	x.writeError(fmt.Sprintf(format, a...))
+	x.writeLogf(dataworks.Error, format, a... )
 }

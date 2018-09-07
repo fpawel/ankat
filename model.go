@@ -45,9 +45,9 @@ type SectVar struct{
 type ScalePosition string
 type TemperaturePosition string
 
-type ConcentrationUnits string
 
-type GasComponent string
+
+
 
 const (
 	ScaleBegin ScalePosition = "SCALE_BEGIN"
@@ -68,14 +68,6 @@ const (
 	TK2 Sect = "TK2"
 
 	PT Sect = "PT"
-
-	UnitsNkpr ConcentrationUnits = "%, НКПР"
-	UnitsPercentVolumeFractions ConcentrationUnits = "объемная доля, %"
-
-	GasCH4 GasComponent = "CH₄"
-	GasC3H8 GasComponent = "C₃H₈"
-	GasSumCH GasComponent = "∑CH"
-	GasCO2 GasComponent = "CO₂"
 )
 
 const (
@@ -113,9 +105,6 @@ const (
 	Var3Ch2 Var = 692
 )
 
-
-
-
 func (x Sect) Description() string {
 	return sectInfo[x].What
 }
@@ -152,9 +141,6 @@ func (x Sect) PointDescription(point Point) string {
 	}
 	return strconv.Itoa(int(point)+1)
 }
-
-
-
 
 var sectInfo = map[Sect]SectInfo{
 	Lin1: { "линеаризация канала 1", 23, 4},

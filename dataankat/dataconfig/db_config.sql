@@ -2,19 +2,19 @@ PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS work_checked (
-  work_order INTEGER PRIMARY KEY,
-  checked    TEXT NOT NULL
+  work_order INTEGER NOT NULL PRIMARY KEY,
+  checked    TEXT    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS section (
-  section_name TEXT PRIMARY KEY CHECK (section_name != ''),
+  section_name TEXT    NOT NULL PRIMARY KEY CHECK (section_name != ''),
   hint         TEXT    NOT NULL CHECK (hint != ''),
   sort_order   INTEGER NOT NULL UNIQUE CHECK (sort_order >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS config (
   section_name  TEXT    NOT NULL CHECK (section_name != ''),
-  property_name TEXT CHECK (property_name != ''),
+  property_name TEXT    NOT NULL CHECK (property_name != ''),
   hint          TEXT    NOT NULL CHECK (hint != ''),
   sort_order    INTEGER NOT NULL CHECK (sort_order >= 0),
   type          TEXT    NOT NULL CHECK (type in ('bool', 'integer', 'real', 'text', 'comport_name', 'baud')),
@@ -41,10 +41,9 @@ CREATE TRIGGER IF NOT EXISTS trigger_set_default_value
 BEGIN
   UPDATE config
   SET value = new.default_value
-  WHERE section_name = new.section_name AND property_name = new.property_name;
+  WHERE section_name = new.section_name
+    AND property_name = new.property_name;
 END;
-
-
 
 
 INSERT
@@ -55,20 +54,14 @@ VALUES (0, 'party', 'Параметры партии'),
        (3, 'comport_temperature', 'Термокамера'),
        (4, 'automatic_work', 'Автоматическая настройка');
 
-INSERT OR IGNORE
+INSERT
+OR IGNORE
     INTO config (sort_order, section_name, property_name, hint, type, min, max, default_value)
 VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3),
        (1, 'automatic_work', 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3),
        (2, 'automatic_work', 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3),
        (3, 'automatic_work', 'delta_temperature', 'Погрешность установки температуры, "С', 'integer', 1, 5, 3),
-       (4,
-        'automatic_work',
-        'timeout_temperature',
-        'Таймаут установки температуры, минут',
-        'integer',
-        5,
-        270,
-        120),
+       (4, 'automatic_work', 'timeout_temperature', 'Таймаут установки температуры, минут', 'integer', 5, 270, 120),
        (0, 'party', 'product_type_number', 'номер исполнения', 'integer', 1, NULL, 10),
        (1, 'party', 'sensors_count', 'количество каналов', 'integer', 1, 2, 1),
        (2, 'party', 'pressure_sensor', 'Датчик давления', 'bool', NULL, NULL, 0),

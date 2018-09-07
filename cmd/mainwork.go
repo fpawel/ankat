@@ -15,8 +15,6 @@ func (x app) mainWork() uiworks.Work {
 		return 20
 	}
 
-	currPar := x.db.CurrentParty()
-
 	workInterpolateSect := func(sect ankat.Sect) uiworks.Work {
 
 		return uiworks.S(fmt.Sprintf("%s: расчёт к-тов %s", sect, sect.CoefficientsStr()),
@@ -41,10 +39,10 @@ func (x app) mainWork() uiworks.Work {
 	workTemperature := uiworks.L("Термокомпенсация",
 		uiworks.L("Снятие",
 			x.workTemperaturePoint("Низкая температура", func() float64 {
-				return currPar.Value("t-")
+				return x.db.CurrentParty().TemperatureMinus
 			}, 0),
 			x.workTemperaturePoint("Высокая температура", func() float64 {
-				return currPar.Value("t+")
+				return x.db.CurrentParty().TemperaturePlus
 			}, 2),
 			x.workTemperaturePoint("НКУ", t20gc, 1),
 		),
@@ -71,7 +69,7 @@ func (x app) mainWork() uiworks.Work {
 
 	//workMainError := uiworks.L( "Проверка" )
 
-	if currPar.IsTwoConcentrationChannels() {
+	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 
 		workTemperature.Children[1].AddChildren(
 			workInterpolateSect(ankat.T02),
@@ -88,7 +86,7 @@ func (x app) mainWork() uiworks.Work {
 			workWriteSectCoefficients(ankat.Lin2))
 	}
 
-	if currPar.IsPressureSensor() {
+	if x.db.CurrentParty().PressureSensor {
 		workTemperature.Children[1].AddChildren(
 			workInterpolateSect(ankat.PT))
 		workTemperature.Children[2].AddChildren(
@@ -156,12 +154,12 @@ func (x app) mainWork() uiworks.Work {
 					return errors.Wrap(err,
 						"не удалось продуть азот")
 				}
-				nitrogenConcentration := currPar.VerificationGasConcentration(ankat.GasNitrogen)
+				nitrogenConcentration := x.db.CurrentParty().VerificationGasConcentration(ankat.GasNitrogen)
 				if err := x.sendCmd(1, nitrogenConcentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки начала шкалы канала 1")
 				}
-				if currPar.IsTwoConcentrationChannels() {
+				if x.db.CurrentParty().IsTwoConcentrationChannels() {
 					if err := x.sendCmd(4, nitrogenConcentration); err != nil {
 						return errors.Wrap(err,
 							"не удалось выполнить команду калибровки начала шкалы канала 2")
@@ -176,7 +174,7 @@ func (x app) mainWork() uiworks.Work {
 					return errors.Wrap(err,
 						"не удалось продуть конец шкалы канала 1")
 				}
-				concentration := currPar.VerificationGasConcentration(ankat.GasChan1End)
+				concentration := x.db.CurrentParty().VerificationGasConcentration(ankat.GasChan1End)
 				if err := x.sendCmd(2, concentration); err != nil {
 					return errors.Wrap(err,
 						"не удалось выполнить команду калибровки чувствительности канала 1")
@@ -186,7 +184,7 @@ func (x app) mainWork() uiworks.Work {
 						return errors.Wrap(err,
 							"не удалось продуть конец шкалы канала 2")
 					}
-					concentration = currPar.VerificationGasConcentration(ankat.GasChan2End)
+					concentration = x.db.CurrentParty().VerificationGasConcentration(ankat.GasChan2End)
 					if err := x.sendCmd(5, concentration); err != nil {
 						return errors.Wrap(err,
 							"не удалось выполнить команду калибровки чувствительности канала 2")
@@ -235,6 +233,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 			Sect: ankat.T01, Var: ankat.Var2Ch1,
 		},
 	}
+
 	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.T02, Var: ankat.TppCh2,
@@ -243,7 +242,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 		})
 	}
 
-	if x.db.CurrentParty().IsPressureSensor() {
+	if x.db.CurrentParty().PressureSensor {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.PT, Var: ankat.VdatP,
 		}, ankat.ProductVar{
@@ -290,6 +289,7 @@ func (x *app) workSaveCalculateLinSourceValues() (r uiworks.Work) {
 		ankat.GasNitrogen,
 		ankat.GasChan1Middle1,
 	}
+
 	if x.db.CurrentParty().IsCO2() {
 		gases = append(gases, ankat.GasChan1Middle2)
 	}
@@ -402,6 +402,7 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 			Sect: ankat.T01, Var: ankat.Var2Ch1,
 		},
 	}
+
 	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.T02, Var: ankat.TppCh2,
@@ -410,7 +411,7 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 		})
 	}
 
-	if x.db.CurrentParty().IsPressureSensor() {
+	if x.db.CurrentParty().PressureSensor {
 		nitrogenVars = append(nitrogenVars, ankat.ProductVar{
 			Sect: ankat.PT, Var: ankat.VdatP,
 		}, ankat.ProductVar{

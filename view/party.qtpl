@@ -2,7 +2,7 @@
 {% import "github.com/fpawel/ankat" %}
 {% import "fmt" %}
 
-{% func Party(p dataproducts.PartyInfo, funcVarName func(ankat.Var) string ) %}
+{% func Party(p dataproducts.Party, funcVarName func(ankat.Var) string ) %}
 <html> 
 	<head> 
         <title> Партия</title>
@@ -30,46 +30,32 @@
         </style> 
     </head>
     <body>
-    <h3> 
-        Параметры партии №{%d int(p.PartyID) %} от {%s fmt.Sprintf("%s", p.CreatedAt.Format("02.01.2006")) %} 
-    </h3>
-    
-    <table>
-        <tbody>
-            {% for i := range p.Values %}                
-                {% if i % 3 == 0 %}
-                    <tr>
-                    {% for n := 0; n<3 && i + n < len(p.Values); n++ %}
-                        <td class="col1">{%s p.Values[i+n].Key %}</td>
-                        <td class="col2">{%s p.Values[i+n].Str %}</td>
-                    {% endfor %}                    
-                    </tr>
-                {% endif %}                
-	        {% endfor %}
-        </tbody>
-        
-    </table>
 
-    {% for _,sect := range p.ProductVarValues.Sects() %}    
+    {% code
+        varValues := p.ProductVarValues()
+     %}
+
+    {% for _,sect := range varValues.Sects() %}    
         <h3>{%s sect.Description() %}</h3>
         <table class="tab2"> 
             <thead>
                 <tr>
                     <th colspan = "2">Точка</th> 
-                    {% for _,product := range p.ProductVarValues.Products() %}
+                    {% for _,product := range varValues.Products() %}
                         <th>{%v product  %}</th>
                     {% endfor %} 
                 </tr>
             </thead>           
             <tbody>
-                {% for _,v := range p.ProductVarValues.Vars() %}
-                    {% for _,pt := range p.ProductVarValues.Points() %}
+               
+                {% for _,v := range varValues.Vars() %}
+                    {% for _,pt := range varValues.Points() %}
 
-                        {% if xs,ok := p.ProductVarValues.SectVarPointValues(sect, v, pt); ok %}
+                        {% if xs,ok := varValues.SectVarPointValues(sect, v, pt); ok %}
 			                <tr>
                                 <th style="text-align:left;" >{%s sect.PointDescription(pt) %}</th> 
                                 <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)) %}</th>
-                                {% for _,product := range p.ProductVarValues.Products() %}
+                                {% for _,product := range varValues.Products() %}
                                     <td style="text-align:left;">
                                         {% if value,ok := xs[product]; ok %}
                                             {%f value %}
@@ -84,7 +70,7 @@
         </table>        
     {% endfor %}   
 
-    {% if len(p.Coefficients) > 0 %}
+    {% if len(p.Coefficients()) > 0 %}
         {%= Coefficients(p) %}
 
     {% endif %} 
@@ -95,23 +81,27 @@
 </html>
 {% endfunc %}
 
-{% func Coefficients(p dataproducts.PartyInfo ) %}
+{% func Coefficients(p dataproducts.Party ) %}
+
+    {% code
+        values := p.Coefficients()
+    %}
 
     <h3>Коэффициенты</h3>
 
     <table class="tab2">
         <thead>
             <th>№</th>
-            {% for _,product := range p.Coefficients.Products() %}
+            {% for _,product := range values.Products() %}
                 <th>{%d int(product) %}</th>
             {% endfor %}
         </thead>
         <tbody>
-            {% for _,coefficient := range p.Coefficients.Coefficients() %}       
+            {% for _,coefficient := range values.Coefficients() %}       
                 <tr>
                     <th>{%s fmt.Sprintf("%02d", coefficient) %}</th>                        
-                    {% for _,product := range p.Coefficients.Products() %}
-                        <td>{%v formatFloat6(p.Coefficients[coefficient][product] )  %}</td>
+                    {% for _,product := range values.Products() %}
+                        <td>{%v formatFloat6(values[coefficient][product] )  %}</td>
                     {% endfor %} 
                 </tr>
 	        {% endfor %}

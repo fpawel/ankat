@@ -5,31 +5,28 @@ PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS party (
-  party_id            INTEGER PRIMARY KEY,
+  party_id            INTEGER          NOT NULL  PRIMARY KEY,
   created_at          TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  product_type_number INTEGER                   DEFAULT 22 CHECK (product_type_number > 0),
+  product_type_number INTEGER          NOT NULL DEFAULT 22 CHECK (product_type_number > 0),
+  sensors_count       INTEGER          NOT NULL DEFAULT 1 CHECK (sensors_count IN (1, 2)),
+  pressure_sensor     INTEGER          NOT NULL DEFAULT 1 CHECK (pressure_sensor IN (0, 1)),
 
-  sensors_count       INTEGER                   DEFAULT 1 CHECK (sensors_count IN (1, 2)),
+  cgas1               REAL             NOT NULL DEFAULT 0,
+  cgas2               REAL             NOT NULL DEFAULT 50,
+  cgas3               REAL             NOT NULL DEFAULT 70,
+  cgas4               REAL             NOT NULL DEFAULT 100,
+  cgas5               REAL             NOT NULL DEFAULT 0.67,
+  cgas6               REAL             NOT NULL DEFAULT 2,
 
-  pressure_sensor                               DEFAULT 1 CHECK (pressure_sensor IN (0, 1)),
+  temperature_minus   REAL             NOT NULL DEFAULT -30.,
+  temperature_plus    REAL             NOT NULL DEFAULT 45.,
 
-  cgas1               REAL                      DEFAULT 0,
-  cgas2               REAL                      DEFAULT 50,
-  cgas3               REAL                      DEFAULT 70,
-  cgas4               REAL                      DEFAULT 100,
-  cgas5               REAL                      DEFAULT 0.67,
-  cgas6               REAL                      DEFAULT 2,
-
-  temperature_minus   REAL                      DEFAULT -30.,
-  temperature_plus    REAL                      DEFAULT 45.,
-
-
-  gas1                TEXT                      DEFAULT 'CH₄',
-  gas2                TEXT                      DEFAULT 'CH₄',
-  scale1              REAL                      DEFAULT 100,
-  scale2              REAL                      DEFAULT 100,
-  units1              TEXT                      DEFAULT '%, НКПР',
-  units2              TEXT                      DEFAULT '%, НКПР'
+  gas1                TEXT             NOT NULL DEFAULT 'CH₄',
+  gas2                TEXT             NOT NULL DEFAULT 'CH₄',
+  scale1              REAL             NOT NULL DEFAULT 100,
+  scale2              REAL             NOT NULL DEFAULT 100,
+  units1              TEXT             NOT NULL DEFAULT '%, НКПР',
+  units2              TEXT             NOT NULL DEFAULT '%, НКПР'
 
 );
 
@@ -106,7 +103,7 @@ CREATE TABLE IF NOT EXISTS product_value (
   party_id       INTEGER NOT NULL,
   product_serial REAL    NOT NULL,
   section        TEXT    NOT NULL,
-  point                  NOT NULL,
+  point          INTEGER NOT NULL,
   var            INTEGER NOT NULL,
   value          REAL    NOT NULL,
 
@@ -133,12 +130,10 @@ CREATE VIEW IF NOT EXISTS party_info AS
 CREATE TABLE IF NOT EXISTS main_error_source (
   party_id       INTEGER NOT NULL,
   product_serial INTEGER NOT NULL,
-
-  sensor CHECK (sensor IN (1, 2)),
-  scale CHECK (scale IN ('SCALE_BEGIN', 'SCALE_MIDDLE', 'SCALE_END')),
-  temp CHECK (temp IN ('T_LOW', 'T_NORM', 'T_HIGH')),
-
-  value          REAL CHECK (typeof(value) IN ('real', 'integer')),
+  sensor         INTEGER NOT NULL CHECK (sensor IN (1, 2)),
+  scale          INTEGER NOT NULL CHECK (scale IN ('SCALE_BEGIN', 'SCALE_MIDDLE', 'SCALE_END')),
+  temp           TEXT    NOT NULL CHECK (temp IN ('T_LOW', 'T_NORM', 'T_HIGH')),
+  value          REAL    NOT NULL CHECK (typeof(value) IN ('real', 'integer')),
 
   UNIQUE (party_id, product_serial, sensor, scale, temp),
 
@@ -236,12 +231,12 @@ VALUES (0, 'CCh0', 'концентрация - канал 1 (электрохи�
        (694, 'FppCh1', 'частота преобразования АЦП - второй канал оптики');
 
 CREATE TABLE IF NOT EXISTS work (
-  work_id        INTEGER PRIMARY KEY,
-  parent_work_id INTEGER,
+  work_id        INTEGER   NOT NULL PRIMARY KEY,
+  parent_work_id INTEGER   NOT NULL,
   created_at     TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  work_name      TEXT,
-  work_index     INTEGER,
-  party_id       INTEGER,
+  work_name      TEXT      NOT NULL,
+  work_index     INTEGER   NOT NULL,
+  party_id       INTEGER   NOT NULL,
   FOREIGN KEY (parent_work_id) REFERENCES work (work_id),
   FOREIGN KEY (party_id) REFERENCES party (party_id)
     ON DELETE CASCADE
@@ -260,10 +255,10 @@ BEGIN
 END;
 
 CREATE TABLE IF NOT EXISTS work_log (
-  record_id      INTEGER PRIMARY KEY,
+  record_id      INTEGER   NOT NULL PRIMARY KEY,
   created_at     TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   work_id        INTEGER   NOT NULL,
-  product_serial INTEGER,
+  product_serial INTEGER   NOT NULL,
   level          INTEGER   NOT NULL CHECK (level >= 0),
   message        TEXT      NOT NULL CHECK (message != ''),
   FOREIGN KEY (work_id) REFERENCES work (work_id)
@@ -428,7 +423,7 @@ VALUES (1, 'Коррекция нуля 1'),
        (20, 'Коррекция смещения датчика температуры');
 
 CREATE TABLE IF NOT EXISTS series (
-  series_id  INTEGER PRIMARY KEY,
+  series_id  INTEGER   NOT NULL PRIMARY KEY,
   created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   work_id    INTEGER   NOT NULL,
   FOREIGN KEY (work_id) REFERENCES work (work_id)
@@ -452,11 +447,8 @@ CREATE TABLE IF NOT EXISTS chart_value (
   product_serial INTEGER NOT NULL,
   var            INTEGER NOT NULL,
   x              REAL    NOT NULL,
-
   y              REAL    NOT NULL,
-
   UNIQUE (series_id, product_serial, var, x),
-
   FOREIGN KEY (series_id) REFERENCES series (series_id)
     ON DELETE CASCADE,
   FOREIGN KEY (var) REFERENCES read_var (var)

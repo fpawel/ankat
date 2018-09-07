@@ -1,7 +1,6 @@
 package dataproducts
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/dataankat/dbutils"
@@ -9,13 +8,6 @@ import (
 )
 
 
-
-type Product struct {
-	Checked bool                `db:"checked"`
-	Comport string              `db:"comport"`
-	Serial  ankat.ProductSerial `db:"product_serial"`
-	Ordinal int                 `db:"ordinal"`
-}
 
 type Var struct {
 	Var     ankat.Var `db:"var"`
@@ -33,16 +25,13 @@ type DBProducts struct {
 	DB *sqlx.DB
 }
 
-
-
-
 func MustOpen(fileName string) (db DBProducts) {
-	db = DBProducts{dbutils.MustOpen(fileName, "sqlite3", ) }
+	db = DBProducts{dbutils.MustOpen(fileName, "sqlite3", )}
 	db.DB.MustExec(SQLAnkat)
 	return
 }
 
-func (x DBProducts) PartyExists() (exists bool){
+func (x DBProducts) PartyExists() (exists bool) {
 	dbutils.MustGet(x.DB, &exists, `SELECT exists(SELECT party_id FROM party);`)
 	return
 }
@@ -58,9 +47,9 @@ func (x DBProducts) FormatCmd(cmd uint16) (s string) {
 	return
 }
 
-func (x DBProducts) ProductValue(partyID ankat.PartyID, serial ankat.ProductSerial, p ankat.ProductVar) (value float64, exits bool) {
+func productValue(db *sqlx.DB, partyID ankat.PartyID, serial ankat.ProductSerial, p ankat.ProductVar) (value float64, exits bool) {
 	var xs []float64
-	dbutils.MustSelect(x.DB, &xs, `
+	dbutils.MustSelect(db, &xs, `
 SELECT value FROM product_value 
 WHERE party_id = ? AND product_serial=? AND var = ? AND section = ? AND point = ?;`,
 		partyID, serial, p.Var, p.Sect, p.Point)
@@ -100,94 +89,14 @@ func (x DBProducts) CheckedCoefficients() (coefficients []Coefficient) {
 	return
 }
 
-
-func (x DBProducts) PartyInfo(partyID ankat.PartyID) (party PartyInfo) {
-	dbutils.MustGet(x.DB, &party, `
-SELECT party_id, created_at FROM party WHERE party_id = $1;`, partyID)
-
-	dbutils.MustSelect(x.DB, &party.Products, `
-SELECT product_serial
-FROM product
-WHERE party_id = $1
-ORDER BY product_serial ASC;`, partyID)
-	{
-		rows, err := x.DB.DB.Query(`PRAGMA table_info(party);`)
-		if err != nil {
-			panic(err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var v KeyStr
-			var tmp sql.NullString
-			err := rows.Scan(&tmp, &v.Key, &tmp, &tmp, &tmp, &tmp)
-			if err != nil {
-				panic(err)
-			}
-
-			q := fmt.Sprintf( "SELECT %s FROM party WHERE party_id=%d", v.Key, partyID )
-			dbutils.MustGet(x.DB, &v.Str, q)
-
-			party.Values = append(party.Values, v)
-		}
-	}
-
-
-
-	var coefficients []struct {
-		Coefficient   ankat.Coefficient   `db:"coefficient_id"`
-		ProductSerial ankat.ProductSerial `db:"product_serial"`
-		Value         float64             `db:"value"`
-	}
-	dbutils.MustSelect(x.DB, &coefficients, `
-SELECT coefficient_id, product_serial, value FROM product_coefficient_value WHERE party_id = ?;
-`, partyID)
-
-	for _, k := range coefficients {
-		if len(party.Coefficients) == 0 {
-			party.Coefficients = make(Coefficients)
-		}
-		if _, f := party.Coefficients[k.Coefficient]; !f {
-			party.Coefficients[k.Coefficient] = make(map[ankat.ProductSerial]float64)
-		}
-		party.Coefficients[k.Coefficient][k.ProductSerial] = k.Value
-	}
-
-	var productVarValues []struct {
-		Sect   ankat.Sect          `db:"section"`
-		Var    ankat.Var           `db:"var"`
-		Point ankat.Point			`db:"point"`
-		Serial ankat.ProductSerial `db:"product_serial"`
-		Value  float64             `db:"value"`
-	}
-	dbutils.MustSelect(x.DB, &productVarValues, `
-SELECT section, var, point, product_serial, value 
-FROM product_value
-WHERE party_id = ?;
-`, partyID)
-
-	for _, k := range productVarValues {
-		if len(party.ProductVarValues) == 0 {
-			party.ProductVarValues = make(ProductVarValues)
-		}
-		if _, f := party.ProductVarValues[k.Sect]; !f {
-			party.ProductVarValues[k.Sect] = make(map[ankat.Var]map[ankat.Point]map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var]; !f {
-			party.ProductVarValues[k.Sect][k.Var] = make(map[ankat.Point]map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var][k.Point]; !f {
-			party.ProductVarValues[k.Sect][k.Var][k.Point] = make(map[ankat.ProductSerial]float64)
-		}
-		if _, f := party.ProductVarValues[k.Sect][k.Var][k.Point]; !f {
-			party.ProductVarValues[k.Sect][k.Var][k.Point] = make(map[ankat.ProductSerial]float64)
-		}
-		party.ProductVarValues[k.Sect][k.Var][k.Point][k.Serial] = k.Value
-	}
-
+func (x DBProducts) Party(partyID ankat.PartyID) (party Party) {
+	party.db = x.DB
+	dbutils.MustGet(x.DB, &party, `SELECT * FROM party WHERE party_id = $1;`, partyID)
 	return
 }
 
-func (x DBProducts) CurrentParty() DBCurrentParty  {
-	return DBCurrentParty{x}
+func (x DBProducts) CurrentParty() (party CurrentParty) {
+	party.db = x.DB
+	dbutils.MustGet(x.DB, &party, `SELECT * FROM current_party ;`)
+	return
 }
-
