@@ -35,9 +35,7 @@ type Party struct {
 	db *sqlx.DB
 }
 
-func (x CurrentParty) ProductValue(serial ankat.ProductSerial, p ankat.ProductVar) (value float64, exits bool) {
-	return productValue(x.db, x.PartyID, serial, p)
-}
+
 
 func (x Party) What() string {
 	s := fmt.Sprintf("%d, %s%d", x.ProductTypeNumber, x.Gas1, x.Scale1)
@@ -121,4 +119,24 @@ WHERE party_id = ?;
 	}
 
 	return
+}
+
+
+func (x Party) VerificationGasConcentration(gas ankat.GasCode) float64 {
+	switch gas {
+	case ankat.GasNitrogen:
+		return x.CGas1
+	case ankat.GasChan1Middle1:
+		return x.CGas2
+	case ankat.GasChan1Middle2:
+		return x.CGas3
+	case ankat.GasChan1End:
+		return x.CGas4
+	case ankat.GasChan2Middle:
+		return x.CGas5
+	case ankat.GasChan2End:
+		return x.CGas6
+	default:
+		panic(fmt.Sprintf("unknown gas: %d", gas))
+	}
 }

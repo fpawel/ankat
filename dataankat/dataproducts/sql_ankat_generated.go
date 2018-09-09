@@ -88,8 +88,8 @@ CREATE VIEW IF NOT EXISTS current_party_products_config AS
 CREATE TABLE IF NOT EXISTS read_var (
   var         INTEGER NOT NULL PRIMARY KEY CHECK (typeof(var) = 'integer' AND var >= 0),
   name        TEXT    NOT NULL,
-  description TEXT                  DEFAULT '',
-  checked CHECK (checked IN (0, 1)) DEFAULT 1
+  description TEXT    NOT NULL                           DEFAULT '',
+  checked     INTEGER NOT NULL CHECK (checked IN (0, 1)) DEFAULT 1
 );
 
 CREATE VIEW IF NOT EXISTS read_var_enumerated AS
@@ -319,8 +319,8 @@ CREATE VIEW IF NOT EXISTS work_info AS
 CREATE TABLE IF NOT EXISTS coefficient (
   coefficient_id INTEGER NOT NULL  PRIMARY KEY CHECK (typeof(coefficient_id) = 'integer' AND coefficient_id >= 0),
   name           TEXT    NOT NULL,
-  description    TEXT               DEFAULT '',
-  checked CHECK (checked IN (0, 1)) DEFAULT 1
+  description    TEXT                                       DEFAULT '',
+  checked        INTEGER NOT NULL CHECK (checked IN (0, 1)) DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS product_coefficient_value (
