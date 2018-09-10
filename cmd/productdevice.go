@@ -22,7 +22,7 @@ type productDevice struct {
 type readProductResult struct {
 	Product, Var int
 	Value        float64
-	Error        string
+	Error        string `json:",omitempty"`
 }
 
 type CoefficientValues = map[ankat.Coefficient]float64
@@ -119,13 +119,14 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 
 	var bytes []byte
 	bytes, err = x.port.Fetch(req.Bytes())
-	if fetch.Canceled(err) {
-		return 0, err
+	if err != nil {
+		return
 	}
-	if err == nil {
-		value, err = req.ParseBCDValue(bytes)
+	value, err = req.ParseBCDValue(bytes)
+	if err != nil {
+		return
 	}
-	x.notifyConnected(err, "$%d=%v", v, value)
+	//x.notifyConnected(err, "$%d=%v", v, value)
 	for _, a := range x.app.db.Vars() {
 		if a.Var == v {
 			x.app.delphiApp.Send("READ_VAR", readProductResult{

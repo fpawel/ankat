@@ -28,6 +28,14 @@ func MustNamedExec(db *sqlx.DB, query string, arg interface{}) sql.Result {
 
 
 func MustOpen(fileName, driverName string) (db *sqlx.DB) {
+	fileName += "?_journal:WAL?cache:shared"
+	db = sqlx.MustConnect(driverName,  fileName)
+	if err := db.Ping(); err != nil {
+		panic(err)
+	}
+	if err := db.Close(); err != nil {
+		panic(err)
+	}
 	db = sqlx.MustConnect(driverName,  fileName)
 	if err := db.Ping(); err != nil {
 		panic(err)

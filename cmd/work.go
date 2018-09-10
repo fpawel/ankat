@@ -19,6 +19,9 @@ func (x app) runWork(ordinal int, w uiworks.Work) {
 			x.sendMessage(0, dataworks.Error, err.Error())
 		}
 	})
+	x.delphiApp.Send("READ_PRODUCT", struct {
+		Product int
+	}{-1})
 }
 
 
@@ -44,9 +47,9 @@ func (x app) sendCmd(cmd uint16, value float64) error {
 func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
-		dataworks.AddRootWork(x.db.DBProducts.DB, "опрос")
-		x.db.CreateNewSeries()
-		defer x.db.DeleteLastEmptySeries()
+
+		series := dataproducts.NewSeries()
+		defer series.Save(x.db.DBProducts, "Опрос")
 
 		for {
 
@@ -69,7 +72,7 @@ func (x app) runReadVarsWork() {
 						}
 						value, err := p.readVar(v.Var)
 						if err == nil {
-							x.db.AddChartValue(p.ProductSerial, v.Var, value)
+							series.AddRecord(p.ProductSerial, v.Var, value)
 						}
 					}
 					return nil
@@ -139,11 +142,10 @@ func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice
 }
 
 func (x *app) doProductDevice(p dataproducts.CurrentProduct, errorLogger errorLogger, w func(p productDevice) error) {
-	type product struct {
+	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
-	}
-	x.delphiApp.Send("READ_PRODUCT", product{p.Ordinal})
-	defer x.delphiApp.Send("READ_PRODUCT", product{-1})
+	}{p.Ordinal})
+
 
 	port, err := x.comportProduct(p, errorLogger)
 	if err == nil {
@@ -163,7 +165,10 @@ func (x *app) doProductDevice(p dataproducts.CurrentProduct, errorLogger errorLo
 }
 
 func (x app) doDelayWithReadProducts(what string, duration time.Duration) error {
-	x.db.CreateNewSeries()
+
+	series := dataproducts.NewSeries()
+	defer series.Save(x.db.DBProducts, what)
+
 	vars := ankat.MainVars1()
 	if x.db.CurrentParty().IsTwoConcentrationChannels() {
 		vars = append(vars, ankat.MainVars2()...)
@@ -194,7 +199,7 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 		}, func(p productDevice) error {
 			value, err := p.readVar(vars[iV])
 			if err == nil {
-				x.db.AddChartValue(p.ProductSerial, vars[iV], value)
+				series.AddRecord(p.ProductSerial, vars[iV], value)
 			}
 			return nil
 		})

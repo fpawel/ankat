@@ -14,7 +14,8 @@ type DBAnkat struct {
 
 func MustOpen() DBAnkat {
 	return DBAnkat{
+		DBProducts:dataproducts.MustOpen(ankat.AppDataFileName( "products.db")),
 		DBConfig:dataconfig.MustOpen(ankat.AppDataFileName("config.db")),
-		DBProducts:dataproducts.MustOpen(ankat.AppDataFileName("products.db")),
+
 	}
 }

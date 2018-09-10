@@ -232,11 +232,11 @@ VALUES (0, 'CCh0', 'концентрация - канал 1 (электрохи�
 
 CREATE TABLE IF NOT EXISTS work (
   work_id        INTEGER   NOT NULL PRIMARY KEY,
-  parent_work_id INTEGER   NOT NULL,
+  parent_work_id INTEGER,
   created_at     TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   work_name      TEXT      NOT NULL,
   work_index     INTEGER   NOT NULL,
-  party_id       INTEGER   NOT NULL,
+  party_id       INTEGER,
   FOREIGN KEY (parent_work_id) REFERENCES work (work_id),
   FOREIGN KEY (party_id) REFERENCES party (party_id)
     ON DELETE CASCADE
@@ -424,63 +424,44 @@ VALUES (1, 'Коррекция нуля 1'),
 
 CREATE TABLE IF NOT EXISTS series (
   series_id  INTEGER   NOT NULL PRIMARY KEY,
-  created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  work_id    INTEGER   NOT NULL,
-  FOREIGN KEY (work_id) REFERENCES work (work_id)
+  created_at TIMESTAMP NOT NULL UNIQUE,
+  name       TEXT      NOT NULL,
+  party_id   INTEGER   NOT NULL,
+  FOREIGN KEY (party_id) REFERENCES party (party_id)
+    ON DELETE CASCADE
 );
 
+
 CREATE VIEW IF NOT EXISTS series_info AS
-  SELECT cast(strftime('%Y', s.created_at) AS INT) AS year,
-         cast(strftime('%m', s.created_at) AS INT) AS month,
-         cast(strftime('%d', s.created_at) AS INT) AS day,
-         s.created_at,
-         s.series_id,
-         w.work_name,
-         w.work_index,
-         w.party_id
-  FROM series s
-         INNER JOIN work w ON w.work_id = s.work_id
-  ORDER BY s.created_at;
+  SELECT *, cast(strftime('%Y', created_at) AS INT) AS year,
+            cast(strftime('%m', created_at) AS INT) AS month,
+            cast(strftime('%d', created_at) AS INT) AS day
+  FROM series
+  ORDER BY created_at;
 
 CREATE TABLE IF NOT EXISTS chart_value (
   series_id      INTEGER NOT NULL,
+  party_id       INTEGER NOT NULL,
   product_serial INTEGER NOT NULL,
   var            INTEGER NOT NULL,
-  x              REAL    NOT NULL,
-  y              REAL    NOT NULL,
-  UNIQUE (series_id, product_serial, var, x),
+  seconds_offset REAL    NOT NULL,
+  value          REAL    NOT NULL,
+  UNIQUE (series_id, party_id, product_serial, var, seconds_offset),
   FOREIGN KEY (series_id) REFERENCES series (series_id)
     ON DELETE CASCADE,
-  FOREIGN KEY (var) REFERENCES read_var (var)
+  FOREIGN KEY (var) REFERENCES read_var (var),
+  FOREIGN KEY (party_id) REFERENCES party (party_id),
+  FOREIGN KEY (party_id, product_serial) REFERENCES product (party_id, product_serial)
 );
 
-CREATE VIEW IF NOT EXISTS last_series AS
-  SELECT *
-  FROM series
-  ORDER BY created_at DESC
-  LIMIT 1;
-
-CREATE VIEW IF NOT EXISTS series_info AS
-  SELECT cast(strftime('%Y', s.created_at) AS INT) AS year,
-         cast(strftime('%m', s.created_at) AS INT) AS month,
-         cast(strftime('%d', s.created_at) AS INT) AS day,
-         s.created_at,
-         s.series_id,
-         w.work_name,
-         w.work_index,
-         w.party_id
-  FROM series s
-         INNER JOIN work w ON w.work_id = s.work_id
-  ORDER BY s.created_at;
-
 CREATE VIEW IF NOT EXISTS chart_value_info AS
-  SELECT strftime('%d.%m.%Y %H:%M:%f', julianday(s.created_at) + b.x) AS x,
-         b.y                                                          AS y,
-         b.product_serial                                             AS product_serial,
-         b.var                                                        AS var,
-         b.series_id                                                  AS series_id,
-         s.party_id                                                   AS party_id,
-         r.name                                                       AS var_name
+  SELECT strftime('%d.%m.%Y %H:%M:%f', s.created_at, '+' || b.seconds_offset || ' seconds') AS created_at,
+         value,
+         product_serial,
+         b.var                                                                              AS var,
+         b.series_id                                                                        AS series_id,
+         b.party_id                                                                         AS party_id,
+         r.name                                                                             AS var_name
   FROM chart_value AS b
          INNER JOIN series_info s on b.series_id = s.series_id
          INNER JOIN read_var r on b.var = r.var;

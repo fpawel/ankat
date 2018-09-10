@@ -1,53 +1,68 @@
 package dataproducts
 
 import (
+	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dbutils"
 	"time"
 )
 
 type Series struct {
-	PartyID   ankat.PartyID `db:"party_id"`
-	CreatedAt time.Time     `db:"created_at"`
-	SeriesID  int64         `db:"series_id"`
-	Name      string        `db:"name"`
+	createdAt time.Time
+	records []seriesValue
 }
 
-func (x DBProducts) CreateNewSeries() {
-	x.DB.MustExec(`
-INSERT INTO  series (work_id) 
-VALUES ( (SELECT work_id FROM work  ORDER BY created_at DESC LIMIT 1));`)
+type seriesValue = struct {
+	SecondsOffset float64
+	Value float64
+	ProductSerial ankat.ProductSerial
+	Var ankat.Var
 }
 
-func (x DBProducts) GetLastSeries() (series Series) {
-	dbutils.MustGet(x.DB, series, `SELECT * FROM last_series`)
-	return
+func NewSeries() (x *Series)  {
+	return &Series{
+		createdAt:time.Now(),
+	}
 }
 
-func (x DBProducts) AddChartValue( serial ankat.ProductSerial, keyVar ankat.Var, value float64) {
-	x.DB.MustExec(`
-INSERT INTO chart_value (series_id, product_serial, var, x, y)
-VALUES
-  ( (SELECT series_id FROM last_series), ?, ?,
-    (SELECT (julianday(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))  -
-             julianday( (SELECT created_at FROM last_series) ))),
-    ? );;
-`, serial, keyVar, value)
+func (x *Series) AddRecord(p ankat.ProductSerial, v ankat.Var, value float64)  {
+	x.records = append(x.records, seriesValue{
+		ProductSerial:p,
+		Var:v,
+		SecondsOffset:time.Since(x.createdAt).Seconds(),
+		Value:value,
+	} )
 }
 
-func (x DBProducts) DeleteLastEmptySeries() {
-	x.DB.MustExec(`
-WITH a AS (SELECT series_id FROM last_series)
-DELETE FROM series WHERE
-  series_id IN (SELECT * FROM a) AND
-  NOT exists(
-    SELECT * FROM chart_value WHERE chart_value.series_id IN (SELECT * FROM a))
-`)
+func (x *Series) Save(db DBProducts, name string)  {
+	partyID := db.CurrentParty().PartyID
+	r := db.DB.MustExec(`
+INSERT INTO  series ( created_at, name, party_id) 
+VALUES (?, ?, ?);`, x.createdAt, name, partyID)
+	seriesID,err := r.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	var args []interface{}
+	queryStr := `
+INSERT INTO chart_value(series_id, party_id, product_serial, var, seconds_offset, value) VALUES `
+	for i,a := range x.records {
+		b := []interface{}{
+			seriesID, partyID, a.ProductSerial, a.Var,
+			a.SecondsOffset, a.Value,
+		}
+		s := fmt.Sprintf("(%d, %d, %d, %d, %v, %v)", b...)
+		args = append(args, b...)
+		if i == len(x.records)-1 {
+			s += ";"
+		} else {
+			s += ", "
+		}
+		queryStr += s
+	}
+	db.DB.MustExec(queryStr, args...)
+
 }
 
-func (x DBProducts) DeleteAllEmptySeries() {
-	x.DB.MustExec(`
-DELETE FROM series WHERE NOT exists(
-    SELECT * FROM chart_value WHERE chart_value.series_id = series.series_id)
-`)
-}
+
+
+
