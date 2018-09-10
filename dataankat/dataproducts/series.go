@@ -3,6 +3,7 @@ package dataproducts
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
+	"github.com/jmoiron/sqlx"
 	"time"
 )
 
@@ -33,9 +34,9 @@ func (x *Series) AddRecord(p ankat.ProductSerial, v ankat.Var, value float64)  {
 	} )
 }
 
-func (x *Series) Save(db DBProducts, name string)  {
-	partyID := db.CurrentParty().PartyID
-	r := db.DB.MustExec(`
+func (x *Series) Save(db *sqlx.DB, name string)  {
+	partyID := GetCurrentParty(db).PartyID
+	r := db.MustExec(`
 INSERT INTO  series ( created_at, name, party_id) 
 VALUES (?, ?, ?);`, x.createdAt, name, partyID)
 	seriesID,err := r.LastInsertId()
@@ -59,7 +60,7 @@ INSERT INTO chart_value(series_id, party_id, product_serial, var, seconds_offset
 		}
 		queryStr += s
 	}
-	db.DB.MustExec(queryStr, args...)
+	db.MustExec(queryStr, args...)
 
 }
 

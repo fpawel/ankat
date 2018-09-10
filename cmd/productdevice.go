@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
+	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/fetch"
@@ -50,7 +51,7 @@ func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 	for _, pv := range vars {
 		value, err := x.readVar(pv.Var)
 
-		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.db.VarName(pv.Var), pv.Point)
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.VarName(pv.Var), pv.Point)
 
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
@@ -65,7 +66,7 @@ func (x productDevice) fixMainError(vars []ankat.ProductVar) error {
 	for _, pv := range vars {
 		value, err := x.readVar(pv.Var)
 
-		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.db.VarName(pv.Var), pv.Point)
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.VarName(pv.Var), pv.Point)
 
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
@@ -95,7 +96,7 @@ func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value flo
 	}
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
 
-	for _, a := range x.app.db.Coefficients() {
+	for _, a := range x.app.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,
@@ -127,7 +128,7 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 		return
 	}
 	//x.notifyConnected(err, "$%d=%v", v, value)
-	for _, a := range x.app.db.Vars() {
+	for _, a := range dataproducts.Vars(x.app.db) {
 		if a.Var == v {
 			x.app.delphiApp.Send("READ_VAR", readProductResult{
 				Var:     a.Ordinal,
@@ -144,7 +145,7 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 
 func (x productDevice) writeInitCoefficients() error {
 
-	p := x.app.db.CurrentParty()
+	p := x.app.CurrentParty()
 
 	xs := CoefficientValues{
 		2: float64(time.Now().Year()),
@@ -260,7 +261,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, v, err)
 	}
-	for _, a := range x.app.db.Coefficients() {
+	for _, a := range x.app.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,
@@ -308,7 +309,7 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, float6(value), err)
 	}
-	for _, a := range x.app.db.Coefficients() {
+	for _, a := range x.app.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
 				Var:     a.Ordinal,

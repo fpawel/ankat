@@ -20,18 +20,16 @@ type Coefficient struct {
 	Ordinal     int               `db:"ordinal"`
 }
 
-type DBProducts struct {
-	DB *sqlx.DB
-}
 
-func MustOpen(fileName string) (db DBProducts) {
-	db = DBProducts{dbutils.MustOpen(fileName, "sqlite3", )}
-	db.DB.MustExec(SQLAnkat)
+
+func MustOpen(fileName string) (db *sqlx.DB) {
+	db = dbutils.MustOpen(fileName, "sqlite3", )
+	db.MustExec(SQLAnkat)
 	return
 }
 
-func (x DBProducts) PartyExists() (exists bool) {
-	dbutils.MustGet(x.DB, &exists, `SELECT exists(SELECT party_id FROM party);`)
+func PartyExists(db *sqlx.DB) (exists bool) {
+	dbutils.MustGet(db, &exists, `SELECT exists(SELECT party_id FROM party);`)
 	return
 }
 
@@ -52,39 +50,39 @@ WHERE party_id = ? AND product_serial=? AND var = ? AND section = ? AND point = 
 	return
 }
 
-func (x DBProducts) CheckedVars() (vars []Var) {
-	dbutils.MustSelect(x.DB, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
+func CheckedVars(db *sqlx.DB) (vars []Var) {
+	dbutils.MustSelect(db, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
 	return
 }
 
-func (x DBProducts) VarName(v ankat.Var) (s string) {
-	dbutils.MustGet(x.DB, &s, `SELECT COALESCE( ( SELECT name FROM read_var WHERE var=? ), '#' || ?);`, v, v)
+func VarName(db *sqlx.DB, v ankat.Var) (s string) {
+	dbutils.MustGet(db, &s, `SELECT COALESCE( ( SELECT name FROM read_var WHERE var=? ), '#' || ?);`, v, v)
 	return
 }
 
-func (x DBProducts) Vars() (vars []Var) {
-	dbutils.MustSelect(x.DB, &vars, `SELECT * FROM read_var_enumerated`)
+func Vars(db *sqlx.DB) (vars []Var) {
+	dbutils.MustSelect(db, &vars, `SELECT * FROM read_var_enumerated`)
 	return
 }
 
-func (x DBProducts) Coefficients() (coefficients []Coefficient) {
-	dbutils.MustSelect(x.DB, &coefficients, `SELECT * FROM coefficient_enumerated`)
+func Coefficients(db *sqlx.DB) (coefficients []Coefficient) {
+	dbutils.MustSelect(db, &coefficients, `SELECT * FROM coefficient_enumerated`)
 	return
 }
 
-func (x DBProducts) CheckedCoefficients() (coefficients []Coefficient) {
-	dbutils.MustSelect(x.DB, &coefficients, `SELECT * FROM coefficient_enumerated WHERE checked =1`)
+func CheckedCoefficients(db *sqlx.DB) (coefficients []Coefficient) {
+	dbutils.MustSelect(db, &coefficients, `SELECT * FROM coefficient_enumerated WHERE checked =1`)
 	return
 }
 
-func (x DBProducts) Party(partyID ankat.PartyID) (party Party) {
-	party.db = x.DB
-	dbutils.MustGet(x.DB, &party, `SELECT * FROM party WHERE party_id = $1;`, partyID)
+func GetParty(db *sqlx.DB, partyID ankat.PartyID) (party Party) {
+	party.db = db
+	dbutils.MustGet(db, &party, `SELECT * FROM party WHERE party_id = $1;`, partyID)
 	return
 }
 
-func (x DBProducts) CurrentParty() (party CurrentParty) {
-	party.db = x.DB
-	dbutils.MustGet(x.DB, &party, `SELECT * FROM current_party ;`)
+func GetCurrentParty(db *sqlx.DB) (party CurrentParty) {
+	party.db = db
+	dbutils.MustGet(db, &party, `SELECT * FROM current_party ;`)
 	return
 }

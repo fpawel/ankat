@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
+	"github.com/fpawel/ankat/dataankat/dataconfig"
 	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -26,13 +27,13 @@ func (x app) runWork(ordinal int, w uiworks.Work) {
 
 
 func (x app) comportProduct(p dataproducts.CurrentProduct, errorLogger errorLogger) (*comport.Port, error) {
-	portConfig := x.db.ConfigComport("comport_products")
+	portConfig := dataconfig.Section{DB:x.db, Section:"comport_products"}.Comport()
 	portConfig.Serial.Name = p.Comport
 	return x.comports.Open(portConfig)
 }
 
 func (x app) comport(name string) (*comport.Port, error) {
-	return x.comports.Open(x.db.ConfigComport(name))
+	return x.comports.Open(dataconfig.Section{DB:x.db, Section:name}.Comport() )
 }
 
 func (x app) sendCmd(cmd ankat.Cmd, value float64) error {
@@ -49,22 +50,22 @@ func (x app) runReadVarsWork() {
 	x.runWork(0, uiworks.S("Опрос", func() error {
 
 		series := dataproducts.NewSeries()
-		defer series.Save(x.db.DBProducts, "Опрос")
+		defer series.Save(x.db, "Опрос")
 
 		for {
 
-			if len(x.db.CurrentParty().CheckedProducts()) == 0 {
+			if len(x.CurrentParty().CheckedProducts()) == 0 {
 				return errors.New("не выбраны приборы")
 			}
 
-			for _, p := range x.db.CurrentParty().CheckedProducts() {
+			for _, p := range x.CurrentParty().CheckedProducts() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
 				x.doProductDevice(p, x.sendErrorMessage, func(p productDevice) error {
-					vars := x.db.CheckedVars()
+					vars := dataproducts.CheckedVars(x.db)
 					if len(vars) == 0 {
-						vars = x.db.Vars()[:2]
+						vars = dataproducts.Vars(x.db)[:2]
 					}
 					for _, v := range vars {
 						if x.uiWorks.Interrupted() {
@@ -87,9 +88,9 @@ func (x app) runReadCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Считывание коэффициентов", func() error {
 		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
-			xs := x.db.CheckedCoefficients()
+			xs := dataproducts.CheckedCoefficients(x.db)
 			if len(xs) == 0 {
-				xs = x.db.Coefficients()
+				xs = dataproducts.Coefficients(x.db)
 			}
 			for _, v := range xs {
 				if x.uiWorks.Interrupted() {
@@ -103,8 +104,8 @@ func (x app) runReadCoefficientsWork() {
 }
 
 func (x app) runWriteCoefficient(productOrder, coefficientOrder int) {
-	coefficient := x.db.DBProducts.Coefficients()[coefficientOrder]
-	p := x.db.DBProducts.CurrentParty().CurrentProduct(productOrder)
+	coefficient := dataproducts.Coefficients(x.db)[coefficientOrder]
+	p := x.CurrentParty().CurrentProduct(productOrder)
 	s := fmt.Sprintf("Запись коэффициента %d прибора %d", coefficient.Coefficient,
 		p.ProductSerial)
 	x.runWork(0, uiworks.S(s, func() ( err error) {
@@ -120,9 +121,9 @@ func (x app) runWriteCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Запись коэффициентов", func() error {
 		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
-			xs := x.db.CheckedCoefficients()
+			xs := dataproducts.CheckedCoefficients(x.db)
 			if len(xs) == 0 {
-				xs = x.db.Coefficients()
+				xs = dataproducts.Coefficients(x.db)
 			}
 			for _, v := range xs {
 				if x.uiWorks.Interrupted() {
@@ -136,7 +137,7 @@ func (x app) runWriteCoefficientsWork() {
 }
 
 func (x *app) doEachProductData(w func(p productData)) {
-	for _, p := range x.db.CurrentParty().CheckedProducts() {
+	for _, p := range x.CurrentParty().CheckedProducts() {
 		w(productData{app: x, CurrentProduct: p,})
 	}
 }

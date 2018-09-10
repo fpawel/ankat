@@ -93,7 +93,7 @@ func (x Runner) CurrentRunTask() *Task {
 	return <-ch
 }
 
-func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
+func (x Runner) Run(db *sqlx.DB, mainTask *Task) {
 
 	rootTask := mainTask
 	started := false
@@ -105,11 +105,11 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 
 	writeLog := func(m dataworks.WriteRecord) {
 		if !workLogWritten {
-			dataworks.AddRootWork(dbLog, rootTask.name)
+			dataworks.AddRootWork(db, rootTask.name)
 			workLogWritten = true
 		}
 		m.Works = currentRunTask.ParentKeys()
-		x.delphiApp.Send("CURRENT_WORK_MESSAGE", dataworks.Write(dbLog, m))
+		x.delphiApp.Send("CURRENT_WORK_MESSAGE", dataworks.Write(db, m))
 	}
 
 	for {
@@ -150,7 +150,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			workLogWritten = false
 			go func() {
 				x.notifyWork(task, true)
-				err := task.perform(x, dbConfig)
+				err := task.perform(x, db)
 				d.end()
 				x.chEndWork <- endWork{
 					Error: err,
@@ -165,7 +165,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			}
 			rootTask = mainTask
 			m := rootTask.GetTaskByOrdinal(rm.Ordinal)
-			if !m.Checked(dbConfig) {
+			if !m.Checked(db) {
 				x.delphiApp.Send("ERROR", struct {
 					Text string
 				}{m.Text() + ": операция не отмечена"})
@@ -177,7 +177,7 @@ func (x Runner) Run(dbLog, dbConfig *sqlx.DB, mainTask *Task) {
 			workLogWritten = false
 			go func() {
 				x.chEndWork <- endWork{
-					Error: m.perform(x, dbConfig),
+					Error: m.perform(x, db),
 					Name:  m.name,
 				}
 			}()

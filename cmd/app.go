@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat"
+	"github.com/fpawel/ankat/dataankat/dataconfig"
+	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
 	"github.com/fpawel/ankat/view"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"os/exec"
 	"strconv"
@@ -20,7 +22,7 @@ import (
 
 type app struct {
 	uiWorks   uiworks.Runner
-	db        dataankat.DBAnkat
+	db        *sqlx.DB
 	delphiApp *procmq.ProcessMQ
 	comports  comport.Comports
 }
@@ -31,12 +33,16 @@ type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp() {
 
+
 	x := &app{
-		db: dataankat.MustOpen(),
+		db: dataproducts.MustOpen(ankat.AppDataFileName( "products.db")),
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  comport.Comports{},
 	}
-	if !x.db.PartyExists(){
+	dataconfig.Initialize(x.db, ankat.AppDataFileName("config.db"))
+
+
+	if !dataproducts.PartyExists(x.db){
 		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
 		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
 		if err := cmd.Start(); err != nil {
@@ -45,7 +51,7 @@ func runApp() {
 		if err := cmd.Wait(); err != nil {
 			panic(err)
 		}
-		if !x.db.PartyExists(){
+		if !dataproducts.PartyExists(x.db){
 			fmt.Println("not created")
 			return
 		}
@@ -116,11 +122,11 @@ func runApp() {
 			return nil
 		},
 		"CURRENT_WORKS": func(bytes []byte) interface {} {
-			return x.mainWork().Task().Info(x.db.DBProducts.DB)
+			return x.mainWork().Task().Info(x.db)
 		},
 		"PARTY_INFO": func(bytes []byte) interface {} {
 			partyID := ankat.PartyID(mustParseInt64(bytes))
-			str := view.Party( x.db.Party(partyID), x.db.VarName )
+			str := view.Party( dataproducts.GetParty(x.db, partyID), x.VarName )
 			return str
 		},
 	} {
@@ -146,12 +152,29 @@ func runApp() {
 	}()
 
 	go func() {
-		x.uiWorks.Run(x.db.DBProducts.DB, x.db.DBConfig.DB, x.mainWork().Task())
+		x.uiWorks.Run(x.db, x.mainWork().Task())
 		wg.Done()
 	}()
 
 	fmt.Println("peer application started")
 	wg.Wait()
+}
+
+func (x *app) VarName(v ankat.Var) (s string) {
+	dataproducts.VarName(x.db, v)
+	return
+}
+
+func (x *app) CurrentParty() dataproducts.CurrentParty{
+	return dataproducts.GetCurrentParty(x.db)
+}
+
+func (x *app) Coefficients() []dataproducts.Coefficient {
+	return dataproducts.Coefficients(x.db)
+}
+
+func (x *app) CheckedCoefficients() []dataproducts.Coefficient {
+	return dataproducts.CheckedCoefficients(x.db)
 }
 
 func (x *app) sendErrorMessage(productSerial ankat.ProductSerial, text string) {

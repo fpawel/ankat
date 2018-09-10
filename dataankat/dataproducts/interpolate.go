@@ -19,16 +19,13 @@ func (x CurrentProduct) value(k ankat.ProductVar) (float64, error) {
 	if ok {
 		return v, nil
 	}
-	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, x.productsDB().VarName(k.Var))
+	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, VarName(x.db, k.Var))
 }
 
-func (x CurrentProduct) productsDB() DBProducts{
-	return DBProducts{x.db}
-}
 
 
 func (x CurrentProduct) interpolateLin(chanel ankat.AnkatChan) (coefficients []float64, xs []numeth.Coordinate, err error) {
-	party := x.productsDB().CurrentParty()
+	party := GetCurrentParty(x.db )
 	points := chanel.LinPoints(party.IsCO2())
 	xs = make([]numeth.Coordinate, len(points))
 	for i, pt := range points {
