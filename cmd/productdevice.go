@@ -211,16 +211,16 @@ func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 	return err
 }
 
-func (x productDevice) sendCmd(cmd uint16, value float64) error {
+func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 
-	req := modbus.NewWriteCmdBCD(1, 0x16, cmd, value)
+	req := modbus.NewWriteCmdBCD(1, 0x16, uint16(cmd), value)
 	b, err := x.port.Fetch(req.Bytes())
 	if err == nil {
 		err = req.CheckResponse16(b)
 	}
 	if fetch.NoAnswer(err) || modbus.ProtocolError(err) {
 		//x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, err.Error())
-		req = modbus.NewWriteCmdBCD(1, 0x10, cmd, value)
+		req = modbus.NewWriteCmdBCD(1, 0x10, uint16(cmd), value)
 		b, err = x.port.Fetch(req.Bytes())
 		if err == nil {
 			err = req.CheckResponse16(b)
@@ -232,12 +232,12 @@ func (x productDevice) sendCmd(cmd uint16, value float64) error {
 	return err
 }
 
-func (x productDevice) sendCmdLog(cmd uint16, value float64) error {
+func (x productDevice) sendCmdLog(cmd ankat.Cmd, value float64) error {
 	err := x.sendCmd(cmd, value)
 	if err == nil {
-		x.writeInfof("%s: %v", x.app.db.FormatCmd(cmd), value)
+		x.writeInfof("%s: %v", cmd.What(), value)
 	} else {
-		x.writeErrorf("%s: %v: %v", x.app.db.FormatCmd(cmd), value, err)
+		x.writeErrorf("%s: %v: %v", cmd.What(), value, err)
 	}
 	return err
 }
@@ -249,7 +249,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 		return nil
 	}
 
-	err := x.sendCmd(uint16((0x80<<8)+coefficient), v)
+	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), v)
 
 	if fetch.Canceled(err) {
 		return nil
@@ -296,7 +296,7 @@ func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
 
 func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
 
-	err := x.sendCmd(uint16((0x80<<8)+coefficient), value)
+	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), value)
 
 	if fetch.Canceled(err) {
 		return nil

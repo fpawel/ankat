@@ -35,9 +35,9 @@ func (x app) comport(name string) (*comport.Port, error) {
 	return x.comports.Open(x.db.ConfigComport(name))
 }
 
-func (x app) sendCmd(cmd uint16, value float64) error {
+func (x app) sendCmd(cmd ankat.Cmd, value float64) error {
 	x.uiWorks.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
-		x.db.FormatCmd(cmd), value)
+		cmd.What(), value)
 	return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
 		return nil
@@ -99,6 +99,20 @@ func (x app) runReadCoefficientsWork() {
 			}
 			return nil
 		})
+	}))
+}
+
+func (x app) runWriteCoefficient(productOrder, coefficientOrder int) {
+	coefficient := x.db.DBProducts.Coefficients()[coefficientOrder]
+	p := x.db.DBProducts.CurrentParty().CurrentProduct(productOrder)
+	s := fmt.Sprintf("Запись коэффициента %d прибора %d", coefficient.Coefficient,
+		p.ProductSerial)
+	x.runWork(0, uiworks.S(s, func() ( err error) {
+		x.doProductDevice(p, x.sendErrorMessage, func(p productDevice) error {
+			err = p.writeCoefficient(coefficient.Coefficient)
+			return err
+		})
+		return
 	}))
 }
 

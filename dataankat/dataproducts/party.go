@@ -15,12 +15,12 @@ type Party struct {
 	SensorsCount      int           `db:"sensors_count"`
 	PressureSensor    bool          `db:"pressure_sensor"`
 
-	CGas1 float64 `db:"cgas1"`
-	CGas2 float64 `db:"cgas2"`
-	CGas3 float64 `db:"cgas3"`
-	CGas4 float64 `db:"cgas4"`
-	CGas5 float64 `db:"cgas5"`
-	CGas6 float64 `db:"cgas6"`
+	ConcentrationGas1 float64 `db:"concentration_gas1"`
+	ConcentrationGas2 float64 `db:"concentration_gas2"`
+	ConcentrationGas3 float64 `db:"concentration_gas3"`
+	ConcentrationGas4 float64 `db:"concentration_gas4"`
+	ConcentrationGas5 float64 `db:"concentration_gas5"`
+	ConcentrationGas6 float64 `db:"concentration_gas6"`
 
 	TemperatureMinus float64 `db:"temperature_minus"`
 	TemperaturePlus  float64 `db:"temperature_plus"`
@@ -125,17 +125,17 @@ WHERE party_id = ?;
 func (x Party) VerificationGasConcentration(gas ankat.GasCode) float64 {
 	switch gas {
 	case ankat.GasNitrogen:
-		return x.CGas1
+		return x.ConcentrationGas1
 	case ankat.GasChan1Middle1:
-		return x.CGas2
+		return x.ConcentrationGas2
 	case ankat.GasChan1Middle2:
-		return x.CGas3
+		return x.ConcentrationGas3
 	case ankat.GasChan1End:
-		return x.CGas4
+		return x.ConcentrationGas4
 	case ankat.GasChan2Middle:
-		return x.CGas5
+		return x.ConcentrationGas5
 	case ankat.GasChan2End:
-		return x.CGas6
+		return x.ConcentrationGas6
 	default:
 		panic(fmt.Sprintf("unknown gas: %d", gas))
 	}

@@ -54,6 +54,21 @@ func runApp() {
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
 	for msg,fun := range map[string] func([]byte) interface{} {
+
+		"MODBUS_COMMANDS": func([]byte) interface {}{
+			type a = struct {
+				Cmd ankat.Cmd
+				Str string
+			}
+			var payload struct {
+				Items []a
+			}
+			for _,v := range ankat.Commands() {
+				payload.Items = append(payload.Items, a{v, v.What()})
+			}
+			return payload
+		},
+
 		"CURRENT_WORK_STOP":  func([]byte) interface {}{
 			x.uiWorks.Interrupt()
 			x.comports.Interrupt()
@@ -79,9 +94,19 @@ func runApp() {
 			x.runWriteCoefficientsWork()
 			return nil
 		},
+		"WRITE_COEFFICIENT": func(b []byte) interface {}{
+			var a struct {
+				Product, Coefficient int
+			}
+			mustUnmarshalJson(b, &a)
+
+
+			x.runWriteCoefficient(a.Product, a.Coefficient)
+			return nil
+		},
 		"MODBUS_CMD": func(b []byte) interface {}{
 			var a struct {
-				Cmd uint16
+				Cmd ankat.Cmd
 				Arg float64
 			}
 			mustUnmarshalJson(b, &a)

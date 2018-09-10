@@ -4,23 +4,22 @@ const SQLAnkat = `
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
+ATTACH DATABASE 'config.db' AS db2;
+
 CREATE TABLE IF NOT EXISTS party (
   party_id            INTEGER          NOT NULL  PRIMARY KEY,
   created_at          TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   product_type_number INTEGER          NOT NULL DEFAULT 22 CHECK (product_type_number > 0),
   sensors_count       INTEGER          NOT NULL DEFAULT 1 CHECK (sensors_count IN (1, 2)),
   pressure_sensor     INTEGER          NOT NULL DEFAULT 1 CHECK (pressure_sensor IN (0, 1)),
-
-  cgas1               REAL             NOT NULL DEFAULT 0,
-  cgas2               REAL             NOT NULL DEFAULT 50,
-  cgas3               REAL             NOT NULL DEFAULT 70,
-  cgas4               REAL             NOT NULL DEFAULT 100,
-  cgas5               REAL             NOT NULL DEFAULT 0.67,
-  cgas6               REAL             NOT NULL DEFAULT 2,
-
+  concentration_gas1  REAL             NOT NULL DEFAULT 0,
+  concentration_gas2  REAL             NOT NULL DEFAULT 50,
+  concentration_gas3  REAL             NOT NULL DEFAULT 70,
+  concentration_gas4  REAL             NOT NULL DEFAULT 100,
+  concentration_gas5  REAL             NOT NULL DEFAULT 0.67,
+  concentration_gas6  REAL             NOT NULL DEFAULT 2,
   temperature_minus   REAL             NOT NULL DEFAULT -30.,
   temperature_plus    REAL             NOT NULL DEFAULT 45.,
-
   gas1                TEXT             NOT NULL DEFAULT 'CH₄',
   gas2                TEXT             NOT NULL DEFAULT 'CH₄',
   scale1              REAL             NOT NULL DEFAULT 100,
@@ -258,7 +257,7 @@ CREATE TABLE IF NOT EXISTS work_log (
   record_id      INTEGER   NOT NULL PRIMARY KEY,
   created_at     TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   work_id        INTEGER   NOT NULL,
-  product_serial INTEGER   NOT NULL,
+  product_serial INTEGER,
   level          INTEGER   NOT NULL CHECK (level >= 0),
   message        TEXT      NOT NULL CHECK (message != ''),
   FOREIGN KEY (work_id) REFERENCES work (work_id)
@@ -404,23 +403,6 @@ CREATE VIEW IF NOT EXISTS coefficient_enumerated AS
   WHERE a.coefficient_id >= b.coefficient_id
   GROUP BY a.coefficient_id;
 
-CREATE TABLE IF NOT EXISTS command (
-  command_id  INTEGER NOT NULL UNIQUE CHECK (command_id >= 0 AND typeof(command_id) = 'integer'),
-  description TEXT    NOT NULL
-);
-
-INSERT
-OR IGNORE INTO command
-VALUES (1, 'Коррекция нуля 1'),
-       (2, 'Коррекция конца шкалы 1'),
-       (4, 'Коррекция нуля 2'),
-       (5, 'Коррекция конца шкалы 2'),
-       (7, 'Установка адреса MODBUS'),
-       (8, 'Нормировать каналы 1 ИКД'),
-       (9, 'Нормировать каналы 2 ИКД'),
-       (16, 'Установить тип газа 1'),
-       (17, 'Установить тип газа 2'),
-       (20, 'Коррекция смещения датчика температуры');
 
 CREATE TABLE IF NOT EXISTS series (
   series_id  INTEGER   NOT NULL PRIMARY KEY,

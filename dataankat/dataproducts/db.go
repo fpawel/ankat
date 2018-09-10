@@ -1,7 +1,6 @@
 package dataproducts
 
 import (
-	"fmt"
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/dataankat/dbutils"
 	"github.com/jmoiron/sqlx"
@@ -33,17 +32,6 @@ func MustOpen(fileName string) (db DBProducts) {
 
 func (x DBProducts) PartyExists() (exists bool) {
 	dbutils.MustGet(x.DB, &exists, `SELECT exists(SELECT party_id FROM party);`)
-	return
-}
-
-func (x DBProducts) FormatCmd(cmd uint16) (s string) {
-	var xs []string
-	dbutils.MustSelect(x.DB, &xs, `SELECT description FROM command WHERE command_id = $1;`, cmd)
-	if len(xs) == 0 {
-		s = fmt.Sprintf("команда %d", cmd)
-	} else {
-		s = fmt.Sprintf("%d: %s", cmd, xs[0])
-	}
 	return
 }
 

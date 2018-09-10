@@ -9,18 +9,6 @@ type CurrentParty struct {
 	Party
 }
 
-
-func (x CurrentParty) AnkatChannels() (xs []ankat.AnkatChan) {
-	xs = append(xs, ankat.Chan1)
-	if x.IsTwoConcentrationChannels() {
-		xs = append(xs, ankat.Chan2)
-	}
-	return
-}
-
-
-
-
 func (x CurrentParty) CurrentProducts() (products []CurrentProduct) {
 	dbutils.MustSelect(x.db, &products, `SELECT * FROM current_party_products_config;`)
 	for i := range products{

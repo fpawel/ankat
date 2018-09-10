@@ -76,12 +76,12 @@ VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки 
        (8, 'party', 'units2', 'ед.изм. к.2', 'text', NULL, NULL, '%, НКПР'),
        (9, 'party', 'temperature_minus', 'T-,"С', 'real', NULL, NULL, -30),
        (10, 'party', 'temperature_plus', 'T+,"С', 'real', NULL, NULL, 45),
-       (11, 'party', 'cgas1', 'ПГС1 азот', 'real', 0, NULL, 0),
-       (12, 'party', 'cgas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
-       (13, 'party', 'cgas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
-       (14, 'party', 'cgas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
-       (15, 'party', 'cgas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
-       (16, 'party', 'cgas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2);
+       (11, 'party', 'concentration_gas1', 'ПГС1 азот', 'real', 0, NULL, 0),
+       (12, 'party', 'concentration_gas2', 'ПГС2 середина к.1', 'real', 0, NULL, 0.67),
+       (13, 'party', 'concentration_gas3', 'ПГС3 середина доп.CO₂', 'real', 0, NULL, 1.33),
+       (14, 'party', 'concentration_gas4', 'ПГС4 шкала к.1', 'real', 0, NULL, 2),
+       (15, 'party', 'concentration_gas5', 'ПГС5 середина к.2', 'real', 0, NULL, 1.33),
+       (16, 'party', 'concentration_gas6', 'ПГС6 шкала к.2', 'real', 0, NULL, 2);
 
 INSERT
 OR IGNORE INTO value_list (property_name, value)
