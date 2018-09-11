@@ -25,8 +25,6 @@ func MustNamedExec(db *sqlx.DB, query string, arg interface{}) sql.Result {
 	return r
 }
 
-
-
 func MustOpen(fileName, driverName string) (db *sqlx.DB) {
 	db = sqlx.MustConnect(driverName,  fileName)
 	if err := db.Ping(); err != nil {

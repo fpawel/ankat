@@ -28,7 +28,7 @@ func (x Section) Comport() (c comport.Config) {
 	return
 }
 
-func (x Section) ConfigHour(propertyName string) time.Duration {
+func (x Section) Hour(propertyName string) time.Duration {
 	return x.Duration(propertyName, time.Hour )
 }
 
@@ -47,7 +47,7 @@ func (x Section) Duration(propertyName string, k time.Duration) time.Duration {
 	return v
 }
 
-func (x Section) ConfigFloat64(propertyName string) float64 {
+func (x Section) Float64(propertyName string) float64 {
 	var v float64
 	x.GetValue(&v, propertyName)
 	return v

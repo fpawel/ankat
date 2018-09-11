@@ -1,8 +1,15 @@
 {% import "github.com/fpawel/ankat/dataankat/dataproducts" %}
 {% import "github.com/fpawel/ankat" %}
+{% import "github.com/jmoiron/sqlx" %}
 {% import "fmt" %}
 
-{% func Party(p dataproducts.Party, funcVarName func(ankat.Var) string ) %}
+{% func Party(db *sqlx.DB, partyID ankat.PartyID ) %}
+
+{% code
+    p := dataproducts.GetParty(db, partyID)
+    varValues := p.ProductVarValues()
+%}
+
 <html> 
 	<head> 
         <title> Партия</title>
@@ -31,10 +38,6 @@
     </head>
     <body>
 
-    {% code
-        varValues := p.ProductVarValues()
-     %}
-
     {% for _,sect := range varValues.Sects() %}    
         <h3>{%s sect.Description() %}</h3>
         <table class="tab2"> 
@@ -54,7 +57,7 @@
                         {% if xs,ok := varValues.SectVarPointValues(sect, v, pt); ok %}
 			                <tr>
                                 <th style="text-align:left;" >{%s sect.PointDescription(pt) %}</th> 
-                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", funcVarName(v), int(pt)) %}</th>
+                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", dataproducts.VarName(db, v), int(pt)) %}</th>
                                 {% for _,product := range varValues.Products() %}
                                     <td style="text-align:left;">
                                         {% if value,ok := xs[product]; ok %}

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dataconfig"
 	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/ankat/ui/uiworks"
@@ -27,13 +26,29 @@ func (x app) runWork(ordinal int, w uiworks.Work) {
 
 
 func (x app) comportProduct(p dataproducts.CurrentProduct, errorLogger errorLogger) (*comport.Port, error) {
-	portConfig := dataconfig.Section{DB:x.db, Section:"comport_products"}.Comport()
+	portConfig := x.ConfigSect("comport_products").Comport()
 	portConfig.Serial.Name = p.Comport
-	return x.comports.Open(portConfig)
+	port,err := x.comports.Open(portConfig)
+	if err != nil {
+		x.sendProductConnectionError(p.Ordinal, err.Error())
+	}
+	return port,err
 }
 
 func (x app) comport(name string) (*comport.Port, error) {
-	return x.comports.Open(dataconfig.Section{DB:x.db, Section:name}.Comport() )
+	portConfig := x.ConfigSect(name).Comport()
+	return x.comports.Open( portConfig )
+}
+
+func (x app) sendProductConnectionError(productOrdinal int, text string)  {
+	var b struct {
+		Product int
+		Ok      bool
+		Text    string
+	}
+	b.Product = productOrdinal
+	b.Text = text
+	x.delphiApp.Send("PRODUCT_CONNECTED", b)
 }
 
 func (x app) sendCmd(cmd ankat.Cmd, value float64) error {
@@ -50,22 +65,22 @@ func (x app) runReadVarsWork() {
 	x.runWork(0, uiworks.S("Опрос", func() error {
 
 		series := dataproducts.NewSeries()
-		defer series.Save(x.db, "Опрос")
+		defer series.Save(x.dbProducts, "Опрос")
 
 		for {
 
-			if len(x.CurrentParty().CheckedProducts()) == 0 {
+			if len(x.DBProducts.CheckedProducts()) == 0 {
 				return errors.New("не выбраны приборы")
 			}
 
-			for _, p := range x.CurrentParty().CheckedProducts() {
+			for _, p := range x.DBProducts.CheckedProducts() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
 				x.doProductDevice(p, x.sendErrorMessage, func(p productDevice) error {
-					vars := dataproducts.CheckedVars(x.db)
+					vars := x.DBProducts.CheckedVars()
 					if len(vars) == 0 {
-						vars = dataproducts.Vars(x.db)[:2]
+						vars = x.DBProducts.Vars()[:2]
 					}
 					for _, v := range vars {
 						if x.uiWorks.Interrupted() {
@@ -88,11 +103,7 @@ func (x app) runReadCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Считывание коэффициентов", func() error {
 		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
-			xs := dataproducts.CheckedCoefficients(x.db)
-			if len(xs) == 0 {
-				xs = dataproducts.Coefficients(x.db)
-			}
-			for _, v := range xs {
+			for _, v := range x.DBProducts.CheckedOrAllCoefficients() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
@@ -103,16 +114,34 @@ func (x app) runReadCoefficientsWork() {
 	}))
 }
 
-func (x app) runWriteCoefficient(productOrder, coefficientOrder int) {
-	coefficient := dataproducts.Coefficients(x.db)[coefficientOrder]
-	p := x.CurrentParty().CurrentProduct(productOrder)
-	s := fmt.Sprintf("Запись коэффициента %d прибора %d", coefficient.Coefficient,
-		p.ProductSerial)
+func (x *app) runSetCoefficient(productOrder, coefficientOrder int) {
+	coefficient := x.DBProducts.Coefficients()[coefficientOrder].Coefficient
+	p := x.DBProducts.CurrentProductAt(productOrder)
+	s := fmt.Sprintf("Прибор %d: K%d: ", p.ProductSerial, coefficient)
+	value,okValue := p.CoefficientValue(coefficient)
+	if okValue {
+		s += fmt.Sprintf("запись %v", value)
+	} else {
+		s += "считывание значения"
+	}
+
 	x.runWork(0, uiworks.S(s, func() ( err error) {
-		x.doProductDevice(p, x.sendErrorMessage, func(p productDevice) error {
-			err = p.writeCoefficient(coefficient.Coefficient)
-			return err
-		})
+
+		var pd productDevice
+		pd.app = x
+		pd.CurrentProduct = p
+		pd.port, err = x.comportProduct(p, x.sendErrorMessage)
+		if err != nil {
+			pd.notifyCoefficient(coefficient, 0, err)
+			return
+		}
+
+		if okValue {
+			if err := pd.writeCoefficient(coefficient); err != nil {
+				return err
+			}
+		}
+		_,err = pd.readCoefficient(coefficient)
 		return
 	}))
 }
@@ -121,11 +150,7 @@ func (x app) runWriteCoefficientsWork() {
 
 	x.runWork(0, uiworks.S("Запись коэффициентов", func() error {
 		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
-			xs := dataproducts.CheckedCoefficients(x.db)
-			if len(xs) == 0 {
-				xs = dataproducts.Coefficients(x.db)
-			}
-			for _, v := range xs {
+			for _, v := range x.DBProducts.CheckedOrAllCoefficients() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
@@ -137,17 +162,17 @@ func (x app) runWriteCoefficientsWork() {
 }
 
 func (x *app) doEachProductData(w func(p productData)) {
-	for _, p := range x.CurrentParty().CheckedProducts() {
+	for _, p := range x.DBProducts.CheckedProducts() {
 		w(productData{app: x, CurrentProduct: p,})
 	}
 }
 
 func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice) error) error {
-	if len(x.db.CurrentParty().CheckedProducts()) == 0 {
+	if len(x.DBProducts.CheckedProducts()) == 0 {
 		return errors.New("не выбраны приборы")
 	}
 
-	for _, p := range x.db.CurrentParty().CheckedProducts() {
+	for _, p := range x.DBProducts.CheckedProducts() {
 		if x.uiWorks.Interrupted() {
 			return errors.New("прервано")
 		}
@@ -182,10 +207,10 @@ func (x *app) doProductDevice(p dataproducts.CurrentProduct, errorLogger errorLo
 func (x app) doDelayWithReadProducts(what string, duration time.Duration) error {
 
 	series := dataproducts.NewSeries()
-	defer series.Save(x.db.DBProducts, what)
+	defer series.Save(x.dbProducts, what)
 
 	vars := ankat.MainVars1()
-	if x.db.CurrentParty().IsTwoConcentrationChannels() {
+	if x.DBProducts.CurrentParty().IsTwoConcentrationChannels() {
 		vars = append(vars, ankat.MainVars2()...)
 	}
 	iV, iP := 0, 0
@@ -198,7 +223,7 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 	productErrors := map[ProductError]struct{}{}
 
 	return x.uiWorks.Delay(what, duration, func() error {
-		products := x.db.CurrentParty().CheckedProducts()
+		products := x.DBProducts.CheckedProducts()
 		if len(products) == 0 {
 			return errors.New(what + ": " + "не отмечено ни одного прибора")
 		}
@@ -248,7 +273,7 @@ func (x app) blowGas(gas ankat.GasCode) error {
 	if err := x.switchGas(gas); err != nil {
 		return errors.Wrapf(err, "не удалось переключить клапан %s", gas.Description())
 	}
-	duration := x.db.ConfigMinute("automatic_work", param)
+	duration := x.ConfigSect("automatic_work").Minute(param)
 	return x.doDelayWithReadProducts(what, duration)
 }
 
@@ -279,11 +304,11 @@ func (x app) setupTemperature(temperature float64) error {
 	if err != nil {
 		return errors.Wrap(err, "не удалось открыть СОМ порт термокамеры")
 	}
-	deltaTemperature := x.db.ConfigFloat64("automatic_work", "delta_temperature")
+	deltaTemperature := x.ConfigSect("automatic_work").Float64("delta_temperature")
 
 	return termochamber.WaitForSetupTemperature(
 		temperature-deltaTemperature, temperature+deltaTemperature,
-		x.db.ConfigMinute("automatic_work", "timeout_temperature"),
+		x.ConfigSect("automatic_work").Minute("timeout_temperature"),
 		func() (float64, error) {
 			return termochamber.T800Read(port)
 		})
@@ -296,7 +321,7 @@ func (x app) holdTemperature(temperature float64) error {
 			return err
 		}
 	}
-	duration := x.db.ConfigHour("automatic_work", "delay_temperature")
+	duration := x.ConfigSect("automatic_work").Hour( "delay_temperature")
 	x.uiWorks.WriteLogf(0, dataworks.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)

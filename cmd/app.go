@@ -22,9 +22,12 @@ import (
 
 type app struct {
 	uiWorks   uiworks.Runner
-	db        *sqlx.DB
+	dbProducts        *sqlx.DB
+	dbConfig        *sqlx.DB
 	delphiApp *procmq.ProcessMQ
 	comports  comport.Comports
+
+	DBProducts dataproducts.DB
 }
 
 
@@ -35,14 +38,15 @@ func runApp() {
 
 
 	x := &app{
-		db: dataproducts.MustOpen(ankat.AppDataFileName( "products.db")),
+		dbProducts: dataproducts.MustOpen(ankat.AppDataFileName( "products.db")),
+		dbConfig: dataconfig.MustOpen(ankat.AppDataFileName( "config.db")),
 		delphiApp: procmq.MustOpen("ANKAT"),
 		comports:  comport.Comports{},
 	}
-	dataconfig.Initialize(x.db, ankat.AppDataFileName("config.db"))
+	x.DBProducts.DB = x.dbProducts
 
 
-	if !dataproducts.PartyExists(x.db){
+	if !x.DBProducts.PartyExists(){
 		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
 		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
 		if err := cmd.Start(); err != nil {
@@ -51,7 +55,7 @@ func runApp() {
 		if err := cmd.Wait(); err != nil {
 			panic(err)
 		}
-		if !dataproducts.PartyExists(x.db){
+		if !x.DBProducts.PartyExists(){
 			fmt.Println("not created")
 			return
 		}
@@ -100,14 +104,12 @@ func runApp() {
 			x.runWriteCoefficientsWork()
 			return nil
 		},
-		"WRITE_COEFFICIENT": func(b []byte) interface {}{
+		"SET_COEFFICIENT": func(b []byte) interface {}{
 			var a struct {
 				Product, Coefficient int
 			}
 			mustUnmarshalJson(b, &a)
-
-
-			x.runWriteCoefficient(a.Product, a.Coefficient)
+			x.runSetCoefficient(a.Product, a.Coefficient)
 			return nil
 		},
 		"MODBUS_CMD": func(b []byte) interface {}{
@@ -122,11 +124,11 @@ func runApp() {
 			return nil
 		},
 		"CURRENT_WORKS": func(bytes []byte) interface {} {
-			return x.mainWork().Task().Info(x.db)
+			return x.mainWork().Task().Info(x.dbProducts)
 		},
 		"PARTY_INFO": func(bytes []byte) interface {} {
 			partyID := ankat.PartyID(mustParseInt64(bytes))
-			str := view.Party( dataproducts.GetParty(x.db, partyID), x.VarName )
+			str := view.Party( x.dbProducts, partyID )
 			return str
 		},
 	} {
@@ -152,7 +154,7 @@ func runApp() {
 	}()
 
 	go func() {
-		x.uiWorks.Run(x.db, x.mainWork().Task())
+		x.uiWorks.Run(x.dbProducts, x.dbConfig, x.mainWork().Task())
 		wg.Done()
 	}()
 
@@ -160,21 +162,11 @@ func runApp() {
 	wg.Wait()
 }
 
-func (x *app) VarName(v ankat.Var) (s string) {
-	dataproducts.VarName(x.db, v)
-	return
-}
-
-func (x *app) CurrentParty() dataproducts.CurrentParty{
-	return dataproducts.GetCurrentParty(x.db)
-}
-
-func (x *app) Coefficients() []dataproducts.Coefficient {
-	return dataproducts.Coefficients(x.db)
-}
-
-func (x *app) CheckedCoefficients() []dataproducts.Coefficient {
-	return dataproducts.CheckedCoefficients(x.db)
+func (x *app) ConfigSect(sect string) dataconfig.Section {
+	return dataconfig.Section{
+		Section:sect,
+		DB:x.dbConfig,
+	}
 }
 
 func (x *app) sendErrorMessage(productSerial ankat.ProductSerial, text string) {

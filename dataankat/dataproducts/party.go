@@ -35,7 +35,9 @@ type Party struct {
 	db *sqlx.DB
 }
 
-
+func (x Party) SetMainErrorConcentrationValue(ankatChan ankat.AnkatChan, scalePos ankat.ScalePosition,
+	temperaturePos ankat.TemperaturePosition, serial ankat.ProductSerial, value float64) {
+}
 
 func (x Party) What() string {
 	s := fmt.Sprintf("%d, %s%d", x.ProductTypeNumber, x.Gas1, x.Scale1)

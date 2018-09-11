@@ -1,12 +1,12 @@
 package dataconfig
 
 import (
+	"github.com/fpawel/ankat/dataankat/dbutils"
 	"github.com/jmoiron/sqlx"
 )
 
-
-func Initialize(db *sqlx.DB, fileName string)  {
-	db.MustExec(`ATTACH DATABASE ? AS dbconfig`, fileName)
+func MustOpen(fileName string) (db *sqlx.DB) {
+	db = dbutils.MustOpen(fileName, "sqlite3", )
 	db.MustExec(SQLConfig)
 	for _,s := range []string{
 		"comport_products", "comport_gas", "comport_temperature",
@@ -16,5 +16,6 @@ func Initialize(db *sqlx.DB, fileName string)  {
 			panic(err)
 		}
 	}
+	return
 }
 

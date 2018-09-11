@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dataproducts"
 	"github.com/fpawel/ankat/dataankat/dataworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/fetch"
@@ -20,10 +19,23 @@ type productDevice struct {
 	port *comport.Port
 }
 
-type readProductResult struct {
-	Product, Var int
-	Value        float64
-	Error        string `json:",omitempty"`
+type readProductVarResult struct {
+	ProductOrder,
+	VarOrder int
+	Var           ankat.Var
+	ProductSerial ankat.ProductSerial
+	VarName       string `json:",omitempty"`
+	Value         float64
+	Error         string `json:",omitempty"`
+}
+
+type readProductCoefficientResult struct {
+	ProductOrder,
+	CoefficientOrder int
+	Coefficient     ankat.Coefficient
+	ProductSerial   ankat.ProductSerial
+	Value           float64
+	Error           string `json:",omitempty"`
 }
 
 type CoefficientValues = map[ankat.Coefficient]float64
@@ -47,11 +59,21 @@ func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err erro
 	pipe.Send("PRODUCT_CONNECTED", b)
 }
 
+func (x productDevice) notifyCoefficient(coefficient ankat.Coefficient, value float64, err error) {
+	x.app.delphiApp.Send("READ_COEFFICIENT", readProductCoefficientResult{
+		CoefficientOrder: x.app.DBProducts.GetCoefficientOrdinal(coefficient),
+		Coefficient:      coefficient,
+		ProductOrder:     x.app.DBProducts.CurrentProductOrderBySerial(x.ProductSerial),
+		Error:            fmtErr(err),
+		Value:            value,
+	})
+}
+
 func (x productDevice) fixVarsValues(vars []ankat.ProductVar) error {
 	for _, pv := range vars {
 		value, err := x.readVar(pv.Var)
 
-		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.VarName(pv.Var), pv.Point)
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.DBProducts.VarName(pv.Var), pv.Point)
 
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
@@ -66,7 +88,7 @@ func (x productDevice) fixMainError(vars []ankat.ProductVar) error {
 	for _, pv := range vars {
 		value, err := x.readVar(pv.Var)
 
-		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.VarName(pv.Var), pv.Point)
+		s := fmt.Sprintf("%s:%s[%d]", pv.Sect, x.app.DBProducts.VarName(pv.Var), pv.Point)
 
 		if err != nil {
 			return errors.Wrapf(err, "сохранение: %s", s)
@@ -81,10 +103,36 @@ func (x productDevice) notifyConnected(err error, format string, a ...interface{
 	notifyProductConnected(x.Ordinal, x.app.delphiApp, err, format, a...)
 }
 
+func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
+	value, exists := x.CoefficientValue(coefficient)
+	if !exists {
+		x.writeLogf(dataworks.Warning, "запись К%d: значение не задано", coefficient)
+		return nil
+	}
+
+	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), value)
+
+	if fetch.Canceled(err) {
+		return nil
+	}
+	x.notifyConnected(err, "K%d:=%v", coefficient, value)
+	if err == nil {
+		x.writeInfof("запись K%d:=%v", coefficient, value)
+	} else {
+		x.writeErrorf("запись K%d:=%v: %v", coefficient, value, err)
+	}
+
+	x.notifyCoefficient(coefficient, value, err)
+
+	return err
+}
+
 func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value float64, err error) {
+
 	req := modbus.NewReadCoefficient(1, int(coefficient))
 	var bytes []byte
 	bytes, err = x.port.Fetch(req.Bytes())
+
 	if fetch.Canceled(err) {
 		return 0, err
 	}
@@ -96,27 +144,18 @@ func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value flo
 	}
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
 
-	for _, a := range x.app.Coefficients() {
-		if a.Coefficient == coefficient {
-			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
-				Var:     a.Ordinal,
-				Product: x.Ordinal,
-				Error:   fmtErr(err),
-				Value:   value,
-			})
-			break
-		}
-	}
 	if err == nil {
-		x.writeInfof("K%d=%v", coefficient, value)
+		x.writeInfof("считывание K%d=%v", coefficient, value)
 	} else {
 		x.writeErrorf("считывание K%d: %v", coefficient, err)
 	}
+
+	x.notifyCoefficient(coefficient, value, err)
 	return value, err
 }
 
-func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
-	req := modbus.NewReadBCD(1, uint16(v))
+func (x productDevice) readVar(ankatVar ankat.Var) (value float64, err error) {
+	req := modbus.NewReadBCD(1, uint16(ankatVar))
 
 	var bytes []byte
 	bytes, err = x.port.Fetch(req.Bytes())
@@ -128,13 +167,15 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 		return
 	}
 	//x.notifyConnected(err, "$%d=%v", v, value)
-	for _, a := range dataproducts.Vars(x.app.db) {
-		if a.Var == v {
-			x.app.delphiApp.Send("READ_VAR", readProductResult{
-				Var:     a.Ordinal,
-				Product: x.Ordinal,
-				Error:   fmtErr(err),
-				Value:   value,
+	for _, a := range x.app.DBProducts.Vars() {
+		if a.Var == ankatVar {
+			x.app.delphiApp.Send("READ_VAR", readProductVarResult{
+				VarOrder:     a.Ordinal,
+				Var: ankatVar,
+				VarName: x.app.DBProducts.VarName(ankatVar),
+				ProductOrder: x.Ordinal,
+				Error:        fmtErr(err),
+				Value:        value,
 			})
 			break
 		}
@@ -145,14 +186,14 @@ func (x productDevice) readVar(v ankat.Var) (value float64, err error) {
 
 func (x productDevice) writeInitCoefficients() error {
 
-	p := x.app.CurrentParty()
+	p := x.app.DBProducts.CurrentParty()
 
 	xs := CoefficientValues{
 		2: float64(time.Now().Year()),
 
-		5: p.Units1.Code(),
-		6: p.Gas1.Code(p.Scale1),
-		7: p.Scale1.Code(),
+		5:  p.Units1.Code(),
+		6:  p.Gas1.Code(p.Scale1),
+		7:  p.Scale1.Code(),
 		10: p.VerificationGasConcentration(ankat.GasNitrogen),
 		11: p.VerificationGasConcentration(ankat.GasChan1End),
 
@@ -189,12 +230,6 @@ func (x productDevice) writeInitCoefficients() error {
 		41: 0,
 		42: 0,
 	}
-
-
-
-
-
-
 	return x.writeCoefficientValues(xs)
 }
 
@@ -243,38 +278,6 @@ func (x productDevice) sendCmdLog(cmd ankat.Cmd, value float64) error {
 	return err
 }
 
-func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
-	v, exists := x.CoefficientValue(coefficient)
-	if !exists {
-		x.writeLogf(dataworks.Warning, "запись К%d: значение коэффициента не задано", coefficient)
-		return nil
-	}
-
-	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), v)
-
-	if fetch.Canceled(err) {
-		return nil
-	}
-	x.notifyConnected(err, "K%d:=%v", coefficient, v)
-	if err == nil {
-		x.writeInfof("K%d:=%v", coefficient, v)
-	} else {
-		x.writeErrorf("запись K%d:=%v: %v", coefficient, v, err)
-	}
-	for _, a := range x.app.Coefficients() {
-		if a.Coefficient == coefficient {
-			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
-				Var:     a.Ordinal,
-				Product: x.Ordinal,
-				Error:   fmtErr(err),
-				Value:   v,
-			})
-			break
-		}
-	}
-	return err
-}
-
 func (x productDevice) writeCoefficientValues(coefficientValues CoefficientValues) error {
 
 	for k, value := range coefficientValues {
@@ -309,13 +312,13 @@ func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, valu
 	} else {
 		x.writeErrorf("запись K%d:=%v: %v", coefficient, float6(value), err)
 	}
-	for _, a := range x.app.Coefficients() {
+	for _, a := range x.app.DBProducts.Coefficients() {
 		if a.Coefficient == coefficient {
 			x.app.delphiApp.Send("READ_COEFFICIENT", readProductResult{
-				Var:     a.Ordinal,
-				Product: x.Ordinal,
-				Error:   fmtErr(err),
-				Value:   value,
+				VarOrder:     a.Ordinal,
+				ProductOrder: x.Ordinal,
+				Error:        fmtErr(err),
+				Value:        value,
 			})
 			break
 		}
