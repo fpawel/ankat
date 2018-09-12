@@ -219,7 +219,7 @@ func (x *app) workTemperaturePoint(what string, temperature func() float64, poin
 			if s != "" {
 				s += ", "
 			}
-			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.DBProducts.VarName(a.Var))
+			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.DBProducts.Var(a.Var).Name)
 		}
 
 		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s", gas.Description(), s), func(p productDevice) error {
@@ -388,7 +388,7 @@ func (x *app) workMainErrorTemperaturePoint(what string, temperature func() floa
 			if s != "" {
 				s += ", "
 			}
-			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.DBProducts.VarName(a.Var))
+			s += fmt.Sprintf("%s[%d]%s", a.Sect, a.Point, x.DBProducts.Var(a.Var).Name)
 		}
 
 		return x.workEachProduct(fmt.Sprintf("Снятие %s: %s", gas.Description(), s), func(p productDevice) error {

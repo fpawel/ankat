@@ -4,6 +4,7 @@ import (
 	"github.com/fpawel/ankat"
 	"github.com/fpawel/ankat/dataankat/dbutils"
 	"github.com/jmoiron/sqlx"
+	"sort"
 )
 
 
@@ -68,27 +69,46 @@ func GetCurrentProduct(db *sqlx.DB, n int) (p CurrentProduct) {
 	return
 }
 
-func VarName(db *sqlx.DB, v ankat.Var) (s string) {
-	dbutils.MustGet(db, &s, `SELECT COALESCE( ( SELECT name FROM read_var WHERE var=? ), '#' || ?);`, v, v)
-	return
-}
-
 func Vars(db *sqlx.DB) (vars []Var) {
 	dbutils.MustSelect(db, &vars, `SELECT * FROM read_var_enumerated`)
+	sort.Slice(vars, func(i, j int) bool {
+		return vars[i].Var < vars[j].Var
+	})
 	return
 }
 
 func CheckedVars(db *sqlx.DB) (vars []Var) {
 	dbutils.MustSelect(db, &vars, `SELECT * FROM read_var_enumerated WHERE checked = 1`)
+	sort.Slice(vars, func(i, j int) bool {
+		return vars[i].Var < vars[j].Var
+	})
 	return
 }
 
 func Coefficients(db *sqlx.DB) (coefficients []Coefficient) {
 	dbutils.MustSelect(db, &coefficients, `SELECT * FROM coefficient_enumerated`)
+	sort.Slice(coefficients, func(i, j int) bool {
+		return coefficients[i].Coefficient < coefficients[j].Coefficient
+	})
 	return
 }
 
 func CheckedCoefficients(db *sqlx.DB) (coefficients []Coefficient) {
 	dbutils.MustSelect(db, &coefficients, `SELECT * FROM coefficient_enumerated WHERE checked =1`)
+	sort.Slice(coefficients, func(i, j int) bool {
+		return coefficients[i].Coefficient < coefficients[j].Coefficient
+	})
+	return
+}
+
+func GetVar(db *sqlx.DB, varID ankat.Var) (ankatVar Var) {
+	dbutils.MustGet(db, &ankatVar, `
+SELECT * FROM read_var_enumerated WHERE var = ?;`, varID)
+	return
+}
+
+func GetCoefficient(db *sqlx.DB, coefficient ankat.Coefficient) (ankatCoefficient Coefficient) {
+	dbutils.MustGet(db, &ankatCoefficient, `
+SELECT * FROM coefficient_enumerated WHERE coefficient_id = ?;`, coefficient)
 	return
 }

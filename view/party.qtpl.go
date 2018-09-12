@@ -127,7 +127,7 @@ func StreamParty(qw422016 *qt422016.Writer, db *sqlx.DB, partyID ankat.PartyID) 
 					qw422016.N().S(`</th> 
                                 <th style="text-align:right;" >`)
 					//line party.qtpl:60
-					qw422016.E().S(fmt.Sprintf("%s [%d]", dataproducts.VarName(db, v), int(pt)))
+					qw422016.E().S(fmt.Sprintf("%s [%d]", dataproducts.GetVar(db, v).Name, int(pt)))
 					//line party.qtpl:60
 					qw422016.N().S(`</th>
                                 `)

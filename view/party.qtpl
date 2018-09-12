@@ -57,7 +57,7 @@
                         {% if xs,ok := varValues.SectVarPointValues(sect, v, pt); ok %}
 			                <tr>
                                 <th style="text-align:left;" >{%s sect.PointDescription(pt) %}</th> 
-                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", dataproducts.VarName(db, v), int(pt)) %}</th>
+                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", dataproducts.GetVar(db, v).Name, int(pt)) %}</th>
                                 {% for _,product := range varValues.Products() %}
                                     <td style="text-align:left;">
                                         {% if value,ok := xs[product]; ok %}

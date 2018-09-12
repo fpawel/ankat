@@ -89,6 +89,9 @@ func (x app) runReadVarsWork() {
 						value, err := p.readVar(v.Var)
 						if err == nil {
 							series.AddRecord(p.ProductSerial, v.Var, value)
+							if series.Count() == 1 {
+								x.delphiApp.Send("NEW_CHART", "Опрос")
+							}
 						}
 					}
 					return nil
@@ -240,6 +243,9 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 			value, err := p.readVar(vars[iV])
 			if err == nil {
 				series.AddRecord(p.ProductSerial, vars[iV], value)
+				if series.Count() == 1 {
+					x.delphiApp.Send("NEW_CHART", what)
+				}
 			}
 			return nil
 		})

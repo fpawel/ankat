@@ -1,8 +1,6 @@
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
-ATTACH DATABASE 'config.db' AS db2;
-
 CREATE TABLE IF NOT EXISTS party (
   party_id            INTEGER          NOT NULL  PRIMARY KEY,
   created_at          TIMESTAMP UNIQUE NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
@@ -89,11 +87,11 @@ CREATE TABLE IF NOT EXISTS read_var (
 );
 
 CREATE VIEW IF NOT EXISTS read_var_enumerated AS
-  SELECT count(*) - 1 AS ordinal, cur.var AS var, cur.checked AS checked
-  FROM read_var AS cur
-         LEFT JOIN read_var AS oth
-  WHERE cur.var >= oth.var
-  GROUP BY cur.var;
+  SELECT count(*) - 1 AS ordinal, a.var AS var, a.checked AS checked, a.name AS name, a.description AS description
+  FROM read_var AS a
+         LEFT JOIN read_var AS b
+  WHERE a.var >= b.var
+  GROUP BY a.var;
 
 CREATE TABLE IF NOT EXISTS product_value (
   party_id       INTEGER NOT NULL,
@@ -141,13 +139,13 @@ CREATE TABLE IF NOT EXISTS main_error_source (
 CREATE VIEW IF NOT EXISTS main_error1 AS
   SELECT *, (CASE a.sensor
                WHEN 1 THEN CASE a.scale
-                             WHEN 'SCALE_BEGIN' THEN p.cgas1
-                             WHEN 'SCALE_MIDDLE' THEN p.cgas2
-                             WHEN 'SCALE_END' THEN p.cgas4 END
+                             WHEN 'SCALE_BEGIN' THEN p.concentration_gas1
+                             WHEN 'SCALE_MIDDLE' THEN p.concentration_gas2
+                             WHEN 'SCALE_END' THEN p.concentration_gas4 END
                WHEN 2 THEN CASE a.scale
-                             WHEN 'SCALE_BEGIN' THEN p.cgas1
-                             WHEN 'SCALE_MIDDLE' THEN p.cgas5
-                             WHEN 'SCALE_END' THEN p.cgas6 END END) nominal,
+                             WHEN 'SCALE_BEGIN' THEN p.concentration_gas1
+                             WHEN 'SCALE_MIDDLE' THEN p.concentration_gas5
+                             WHEN 'SCALE_END' THEN p.concentration_gas6 END END) nominal,
             (CASE a.sensor
                WHEN 1 THEN p.units1
                WHEN 2 THEN p.units2 END) AS                         units,
@@ -394,7 +392,8 @@ VALUES (0, 'VER_PO', 'номер версии ПО'),
        (49, 'KFt', 'смещение датчика температуры микроконтроллера, град.С');
 
 CREATE VIEW IF NOT EXISTS coefficient_enumerated AS
-  SELECT count(*) - 1 AS ordinal, a.coefficient_id AS coefficient_id, a.checked AS checked
+  SELECT count(*) - 1 AS ordinal, a.coefficient_id AS coefficient_id, a.checked AS checked,
+         a.name AS name, a.description AS description
   FROM coefficient AS a
          LEFT JOIN coefficient AS b
   WHERE a.coefficient_id >= b.coefficient_id

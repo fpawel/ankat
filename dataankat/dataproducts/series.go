@@ -25,6 +25,10 @@ func NewSeries() (x *Series)  {
 	}
 }
 
+func (x *Series) Count() int  {
+	return len(x.records)
+}
+
 func (x *Series) AddRecord(p ankat.ProductSerial, v ankat.Var, value float64)  {
 	x.records = append(x.records, seriesValue{
 		ProductSerial:p,
@@ -35,6 +39,9 @@ func (x *Series) AddRecord(p ankat.ProductSerial, v ankat.Var, value float64)  {
 }
 
 func (x *Series) Save(db *sqlx.DB, name string)  {
+	if x.Count() == 0 {
+		return
+	}
 	partyID := GetCurrentParty(db).PartyID
 	r := db.MustExec(`
 INSERT INTO  series ( created_at, name, party_id) 

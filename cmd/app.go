@@ -30,8 +30,8 @@ type app struct {
 	DBProducts dataproducts.DB
 }
 
-
 type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, text string)
+
 type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp() {

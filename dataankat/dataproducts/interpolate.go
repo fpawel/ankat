@@ -19,7 +19,7 @@ func (x CurrentProduct) value(k ankat.ProductVar) (float64, error) {
 	if ok {
 		return v, nil
 	}
-	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, VarName(x.db, k.Var))
+	return 0, fmt.Errorf("нет значения в точке %s[%d]%s",k.Sect, k.Point, GetVar(x.db, k.Var).Name)
 }
 
 

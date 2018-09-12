@@ -37,10 +37,6 @@ func (x DB) CurrentProductOrderBySerial(productSerial ankat.ProductSerial ) int{
 	return CurrentProductOrderBySerial(x.DB, productSerial)
 }
 
-func (x DB) VarName(v ankat.Var) string {
-	return VarName(x.DB, v)
-}
-
 func (x DB) Vars() []Var {
 	return Vars(x.DB)
 }
@@ -53,15 +49,14 @@ func (x DB) Coefficients() []Coefficient {
 	return Coefficients(x.DB)
 }
 
-func (x DB) GetCoefficientOrdinal(c ankat.Coefficient) int {
 
-	for i, a := range x.Coefficients() {
-		if a.Coefficient == c {
-			return i
-		}
-	}
 
-	return -1
+func (x DB) Var(varID ankat.Var) Var {
+	return GetVar(x.DB, varID)
+}
+
+func (x DB) Coefficient(coefficient ankat.Coefficient) Coefficient {
+	return GetCoefficient(x.DB, coefficient)
 }
 
 func (x DB) CheckedCoefficients() []Coefficient {
