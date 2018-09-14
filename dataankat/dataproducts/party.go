@@ -142,3 +142,22 @@ func (x Party) VerificationGasConcentration(gas ankat.GasCode) float64 {
 		panic(fmt.Sprintf("unknown gas: %d", gas))
 	}
 }
+
+
+
+
+func (x Party) SetCoefficientsValues(xs []ProductCoefficientValue) {
+	if len(xs) == 0 {
+		return
+	}
+	strQuery := `INSERT OR REPLACE INTO product_coefficient_value (party_id, product_serial, coefficient_id, value) VALUES `
+	for i,v := range xs {
+		strQuery += fmt.Sprintf("(%d, %d, %d, %v)", x.PartyID, v.ProductSerial, v.Coefficient, v.Value )
+		if i == len(xs)-1 {
+			strQuery += ";"
+		} else {
+			strQuery += ", "
+		}
+	}
+	x.db.MustExec(strQuery)
+}

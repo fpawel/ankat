@@ -100,17 +100,28 @@ func (x app) runReadVarsWork() {
 }
 
 func (x app) runReadCoefficientsWork() {
-
 	x.runWork(0, uiworks.S("Считывание коэффициентов", func() error {
-		return x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
+		var read []dataproducts.ProductCoefficientValue
+		x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
 			for _, v := range x.DBProducts.CheckedOrAllCoefficients() {
 				if x.uiWorks.Interrupted() {
 					return nil
 				}
-				_, _ = p.readCoefficient(v.Coefficient)
+				value, err := p.readCoefficient(v.Coefficient)
+				if err == nil {
+					read = append(read, dataproducts.ProductCoefficientValue{
+						ProductSerial:p.ProductSerial,
+						Coefficient:v.Coefficient,
+						Value:value,
+					})
+
+				}
 			}
 			return nil
 		})
+		x.DBProducts.CurrentParty().SetCoefficientsValues(read)
+		
+		return nil
 	}))
 }
 
@@ -141,7 +152,7 @@ func (x *app) runSetCoefficient(productOrder, coefficientOrder int) {
 				return err
 			}
 		}
-		_,err = pd.readCoefficient(coefficient)
+		_,err = pd.readAndSaveCoefficient(coefficient)
 		return
 	}))
 }

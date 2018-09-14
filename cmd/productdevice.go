@@ -131,30 +131,34 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	return err
 }
 
-func (x productDevice) readCoefficient(coefficient ankat.Coefficient) (value float64, err error) {
+func (x productDevice) readCoefficient(coefficient ankat.Coefficient) ( float64,  error) {
 
 	req := modbus.NewReadCoefficient(1, int(coefficient))
-	var bytes []byte
-	bytes, err = x.port.Fetch(req.Bytes())
+	bytes, err := x.port.Fetch(req.Bytes())
 
-	if fetch.Canceled(err) {
+	if err != nil {
 		return 0, err
 	}
-	if err == nil {
-		value, err = req.ParseBCDValue(bytes)
-		if err == nil {
-			x.SetCoefficientValue(coefficient, value)
-		}
-	}
 
+	value, err := req.ParseBCDValue(bytes)
+
+	x.notifyConnected(err, "K%d=%v", coefficient, value)
+	x.notifyCoefficient(coefficient, value, err)
+
+	return value, err
+}
+
+func (x productDevice) readAndSaveCoefficient(coefficient ankat.Coefficient) (value float64, err error) {
+
+	value,err = x.readCoefficient(coefficient)
 	if err == nil {
+		x.SetCoefficientValue(coefficient, value)
 		x.writeInfof("считывание K%d=%v", coefficient, value)
 	} else {
 		x.writeErrorf("считывание K%d: %v", coefficient, err)
 	}
 
-	x.notifyConnected(err, "K%d=%v", coefficient, value)
-	x.notifyCoefficient(coefficient, value, err)
+
 	return value, err
 }
 
@@ -319,7 +323,7 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 			attemptNumber+1, maxAttemptsLimit)
 	}
 
-	k49, err := x.readCoefficient(49)
+	k49, err := x.readAndSaveCoefficient(49)
 	if err != nil {
 		return wrapErr(errors.Wrap(err, "не удалось считать коэффициент 49"))
 	}

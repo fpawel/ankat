@@ -122,7 +122,7 @@ func (x app) mainWork() uiworks.Work {
 			err := p.writeInitCoefficients()
 			if err == nil {
 				for _, k := range x.DBProducts.Coefficients() {
-					if _, err = p.readCoefficient(k.Coefficient); err != nil {
+					if _, err = p.readAndSaveCoefficient(k.Coefficient); err != nil {
 						break
 					}
 				}
