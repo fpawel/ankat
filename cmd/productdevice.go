@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dataworks"
+	"github.com/fpawel/ankat/internal/ankat"
+	"github.com/fpawel/ankat/internal/db/worklog"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/fetch"
 	"github.com/fpawel/guartutils/modbus"
@@ -110,7 +110,7 @@ func (x productDevice) notifyConnected(err error, format string, a ...interface{
 func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 	value, exists := x.CoefficientValue(coefficient)
 	if !exists {
-		x.writeLogf(dataworks.Warning, "запись К%d: значение не задано", coefficient)
+		x.writeLogf(worklog.Warning, "запись К%d: значение не задано", coefficient)
 		return nil
 	}
 
@@ -254,7 +254,7 @@ func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 		err = req.CheckResponse16(b)
 	}
 	if fetch.NoAnswer(err) || modbus.ProtocolError(err) {
-		//x.workCtrl.WriteLog(x.product.Serial, dataworks.Warning, err.Error())
+		//x.workCtrl.WriteLog(x.product.Serial, worklog.Warning, err.Error())
 		req = modbus.NewWriteCmdBCD(1, 0x10, uint16(cmd), value)
 		b, err = x.port.Fetch(req.Bytes())
 		if err == nil {

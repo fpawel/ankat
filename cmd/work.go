@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dataproducts"
-	"github.com/fpawel/ankat/dataankat/dataworks"
-	"github.com/fpawel/ankat/ui/uiworks"
+	"github.com/fpawel/ankat/internal/ankat"
+	"github.com/fpawel/ankat/internal/db/products"
+	"github.com/fpawel/ankat/internal/db/worklog"
+	"github.com/fpawel/ankat/internal/ui/uiworks"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/guartutils/modbus"
 	"github.com/fpawel/termochamber"
@@ -16,7 +16,7 @@ import (
 func (x app) runWork(ordinal int, w uiworks.Work) {
 	x.uiWorks.Perform(ordinal, w, func() {
 		if err := x.comports.Close(); err != nil {
-			x.sendMessage(0, dataworks.Error, err.Error())
+			x.sendMessage(0, worklog.Error, err.Error())
 		}
 	})
 	x.delphiApp.Send("READ_PRODUCT", struct {
@@ -25,7 +25,7 @@ func (x app) runWork(ordinal int, w uiworks.Work) {
 }
 
 
-func (x app) comportProduct(p dataproducts.CurrentProduct, errorLogger errorLogger) (*comport.Port, error) {
+func (x app) comportProduct(p products.CurrentProduct, errorLogger errorLogger) (*comport.Port, error) {
 	portConfig := x.ConfigSect("comport_products").Comport()
 	portConfig.Serial.Name = p.Comport
 	port,err := x.comports.Open(portConfig)
@@ -52,7 +52,7 @@ func (x app) sendProductConnectionError(productOrdinal int, text string)  {
 }
 
 func (x app) sendCmd(cmd ankat.Cmd, value float64) error {
-	x.uiWorks.WriteLogf(0, dataworks.Info, "Отправка команды %s: %v",
+	x.uiWorks.WriteLogf(0, worklog.Info, "Отправка команды %s: %v",
 		cmd.What(), value)
 	return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
@@ -64,7 +64,7 @@ func (x app) runReadVarsWork() {
 
 	x.runWork(0, uiworks.S("Опрос", func() error {
 
-		series := dataproducts.NewSeries()
+		series := products.NewSeries()
 		defer series.Save(x.dbProducts, "Опрос")
 
 		for {
@@ -101,7 +101,7 @@ func (x app) runReadVarsWork() {
 
 func (x app) runReadCoefficientsWork() {
 	x.runWork(0, uiworks.S("Считывание коэффициентов", func() error {
-		var read []dataproducts.ProductCoefficientValue
+		var read []products.ProductCoefficientValue
 		x.doEachProductDevice(x.sendErrorMessage, func(p productDevice) error {
 			for _, v := range x.DBProducts.CheckedOrAllCoefficients() {
 				if x.uiWorks.Interrupted() {
@@ -109,7 +109,7 @@ func (x app) runReadCoefficientsWork() {
 				}
 				value, err := p.readCoefficient(v.Coefficient)
 				if err == nil {
-					read = append(read, dataproducts.ProductCoefficientValue{
+					read = append(read, products.ProductCoefficientValue{
 						ProductSerial:p.ProductSerial,
 						Coefficient:v.Coefficient,
 						Value:value,
@@ -192,7 +192,7 @@ func (x app) doEachProductDevice(errorLogger errorLogger, w func(p productDevice
 	return nil
 }
 
-func (x *app) doProductDevice(p dataproducts.CurrentProduct, errorLogger errorLogger, w func(p productDevice) error) {
+func (x *app) doProductDevice(p products.CurrentProduct, errorLogger errorLogger, w func(p productDevice) error) {
 	x.delphiApp.Send("READ_PRODUCT", struct {
 		Product int
 	}{p.Ordinal})
@@ -217,7 +217,7 @@ func (x *app) doProductDevice(p dataproducts.CurrentProduct, errorLogger errorLo
 
 func (x app) doDelayWithReadProducts(what string, duration time.Duration) error {
 
-	series := dataproducts.NewSeries()
+	series := products.NewSeries()
 	defer series.Save(x.dbProducts, what)
 
 	vars := ankat.MainVars1()
@@ -309,7 +309,7 @@ func (x app) promptErrorStopWork(err error) error {
 	if s != "IGNORE" {
 		return err
 	}
-	x.uiWorks.WriteLogf(0, dataworks.Warning, "ошибка автоматической настройки была проигнорирована: %v", err)
+	x.uiWorks.WriteLogf(0, worklog.Warning, "ошибка автоматической настройки была проигнорирована: %v", err)
 	return nil
 }
 
@@ -336,7 +336,7 @@ func (x app) holdTemperature(temperature float64) error {
 		}
 	}
 	duration := x.ConfigSect("automatic_work").Hour( "delay_temperature")
-	x.uiWorks.WriteLogf(0, dataworks.Info,
+	x.uiWorks.WriteLogf(0, worklog.Info,
 		"выдержка термокамеры на %v\"C: в настройках задана длительность %v", temperature, duration)
 	return x.doDelayWithReadProducts(fmt.Sprintf("выдержка термокамеры на %v\"C", temperature), duration)
 }

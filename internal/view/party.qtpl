@@ -1,0 +1,115 @@
+{% import "github.com/fpawel/ankat/dataankat/dataproducts" %}
+{% import "github.com/fpawel/ankat/internal/ankat" %}
+{% import "github.com/jmoiron/sqlx" %}
+{% import "fmt" %}
+
+{% func Party(db *sqlx.DB, partyID ankat.PartyID ) %}
+
+{% code
+    p := dataproducts.GetParty(db, partyID)
+    varValues := p.ProductVarValues()
+%}
+
+<html> 
+	<head> 
+        <title> Партия</title>
+        <style type="text/css"> 
+            table, th, td { 
+                border-collapse: collapse; 
+                border:0px;
+            }
+            th, td { 
+                font-size: 14px; 
+                padding: 5px 8px;
+            }
+            .col2 {
+                color: #000080; 
+                font-weight: bold; 
+                text-align:left;
+            } 
+            .col1 {
+                text-align:right;
+            }
+
+            table.tab2, table.tab2 th, table.tab2 td {
+                border: 1px solid black;
+            }
+        </style> 
+    </head>
+    <body>
+
+    {% for _,sect := range varValues.Sects() %}    
+        <h3>{%s sect.Description() %}</h3>
+        <table class="tab2"> 
+            <thead>
+                <tr>
+                    <th colspan = "2">Точка</th> 
+                    {% for _,product := range varValues.Products() %}
+                        <th>{%v product  %}</th>
+                    {% endfor %} 
+                </tr>
+            </thead>           
+            <tbody>
+               
+                {% for _,v := range varValues.Vars() %}
+                    {% for _,pt := range varValues.Points() %}
+
+                        {% if xs,ok := varValues.SectVarPointValues(sect, v, pt); ok %}
+			                <tr>
+                                <th style="text-align:left;" >{%s sect.PointDescription(pt) %}</th> 
+                                <th style="text-align:right;" >{%s fmt.Sprintf("%s [%d]", dataproducts.GetVar(db, v).Name, int(pt)) %}</th>
+                                {% for _,product := range varValues.Products() %}
+                                    <td style="text-align:left;">
+                                        {% if value,ok := xs[product]; ok %}
+                                            {%f value %}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %} 
+                            </tr>
+			            {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>        
+    {% endfor %}   
+
+    {% if len(p.Coefficients()) > 0 %}
+        {%= Coefficients(p) %}
+
+    {% endif %} 
+
+    
+
+    </body>
+</html>
+{% endfunc %}
+
+{% func Coefficients(p dataproducts.Party ) %}
+
+    {% code
+        values := p.Coefficients()
+    %}
+
+    <h3>Коэффициенты</h3>
+
+    <table class="tab2">
+        <thead>
+            <th>№</th>
+            {% for _,product := range values.Products() %}
+                <th>{%d int(product) %}</th>
+            {% endfor %}
+        </thead>
+        <tbody>
+            {% for _,coefficient := range values.Coefficients() %}       
+                <tr>
+                    <th>{%s fmt.Sprintf("%02d", coefficient) %}</th>                        
+                    {% for _,product := range values.Products() %}
+                        <td>{%v formatFloat6(values[coefficient][product] )  %}</td>
+                    {% endfor %} 
+                </tr>
+	        {% endfor %}
+        </tbody>
+        
+    </table>
+
+{% endfunc %}

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/dataankat/dataconfig"
-	"github.com/fpawel/ankat/dataankat/dataproducts"
-	"github.com/fpawel/ankat/dataankat/dataworks"
-	"github.com/fpawel/ankat/ui/uiworks"
-	"github.com/fpawel/ankat/view"
+	"github.com/fpawel/ankat/internal/ankat"
+	"github.com/fpawel/ankat/internal/db/cfg"
+	"github.com/fpawel/ankat/internal/db/products"
+	"github.com/fpawel/ankat/internal/db/worklog"
+	"github.com/fpawel/ankat/internal/ui/uiworks"
+	"github.com/fpawel/ankat/internal/view"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
 	"github.com/jmoiron/sqlx"
@@ -21,16 +21,14 @@ import (
 //go:generate go run ./gen_sql_str/main.go
 
 type app struct {
-	uiWorks   uiworks.Runner
-	dbProducts        *sqlx.DB
-	dbConfig        *sqlx.DB
-	delphiApp *procmq.ProcessMQ
-	comports  comport.Comports
+	uiWorks    uiworks.Runner
+	dbProducts *sqlx.DB
+	dbCfg      *sqlx.DB
+	delphiApp  *procmq.ProcessMQ
+	comports   comport.Comports
 
-	DBProducts dataproducts.DB
+	DBProducts products.DB
 }
-
-type logger = func(productSerial ankat.ProductSerial, level dataworks.Level, text string)
 
 type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
@@ -38,10 +36,10 @@ func runApp() {
 
 
 	x := &app{
-		dbProducts: dataproducts.MustOpen(ankat.AppDataFileName( "products.db")),
-		dbConfig: dataconfig.MustOpen(ankat.AppDataFileName( "config.db")),
-		delphiApp: procmq.MustOpen("ANKAT"),
-		comports:  comport.Comports{},
+		dbProducts: products.MustOpen(ankat.AppDataFileName( "products.db")),
+		dbCfg:      cfg.MustOpen(ankat.AppDataFileName( "config.db")),
+		delphiApp:  procmq.MustOpen("ANKAT"),
+		comports:   comport.Comports{},
 	}
 	x.DBProducts.DB = x.dbProducts
 
@@ -63,6 +61,69 @@ func runApp() {
 
 	x.uiWorks = uiworks.NewRunner(x.delphiApp)
 
+	// роуты, через которые приходят команды от клиентского приложения
+	x.registerRoutes()
+
+	fmt.Print("peer: connecting...")
+	if err := x.delphiApp.Connect(); err != nil {
+		panic(err)
+	}
+	fmt.Println("peer: connected")
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+
+	go func() {
+		err := x.delphiApp.Run()
+		if err != nil {
+			panic(err)
+		}
+		x.uiWorks.Close()
+		wg.Done()
+	}()
+
+	go func() {
+		x.uiWorks.Run(x.dbProducts, x.dbCfg, x.mainWork().Task())
+		wg.Done()
+	}()
+
+	fmt.Println("peer application started")
+	wg.Wait()
+}
+
+func (x *app) ConfigSect(sect string) cfg.Section {
+	return cfg.Section{
+		Section:sect,
+		DB:x.dbCfg,
+	}
+}
+
+func (x *app) sendErrorMessage(productSerial ankat.ProductSerial, text string) {
+	x.sendMessage(productSerial, worklog.Error, text)
+}
+
+func (x *app) sendMessage(productSerial ankat.ProductSerial, level worklog.Level, text string) {
+	workIndex := 0
+	work := ""
+	if t := x.uiWorks.CurrentRunTask(); t != nil {
+		workIndex = t.Ordinal()
+		work = t.Name()
+	}
+
+	x.delphiApp.Send("CURRENT_WORK_MESSAGE", struct {
+		WorkIndex     int
+		Work          string
+		CreatedAt     time.Time
+		ProductSerial ankat.ProductSerial
+		Level         worklog.Level
+		Text          string
+	}{
+		workIndex, work, time.Now(), productSerial, level, text,
+	})
+}
+
+// registerRoutes создаётроуты, через которые приходят команды от клиентского приложения
+func (x *app) registerRoutes(){
 	for msg,fun := range map[string] func([]byte) interface{} {
 
 		"MODBUS_COMMANDS": func([]byte) interface {}{
@@ -134,61 +195,4 @@ func runApp() {
 	} {
 		x.delphiApp.Handle(msg, fun)
 	}
-
-	fmt.Print("peer: connecting...")
-	if err := x.delphiApp.Connect(); err != nil {
-		panic(err)
-	}
-	fmt.Println("peer: connected")
-
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
-
-	go func() {
-		err := x.delphiApp.Run()
-		if err != nil {
-			panic(err)
-		}
-		x.uiWorks.Close()
-		wg.Done()
-	}()
-
-	go func() {
-		x.uiWorks.Run(x.dbProducts, x.dbConfig, x.mainWork().Task())
-		wg.Done()
-	}()
-
-	fmt.Println("peer application started")
-	wg.Wait()
-}
-
-func (x *app) ConfigSect(sect string) dataconfig.Section {
-	return dataconfig.Section{
-		Section:sect,
-		DB:x.dbConfig,
-	}
-}
-
-func (x *app) sendErrorMessage(productSerial ankat.ProductSerial, text string) {
-	x.sendMessage(productSerial, dataworks.Error, text)
-}
-
-func (x *app) sendMessage(productSerial ankat.ProductSerial, level dataworks.Level, text string) {
-	workIndex := 0
-	work := ""
-	if t := x.uiWorks.CurrentRunTask(); t != nil {
-		workIndex = t.Ordinal()
-		work = t.Name()
-	}
-
-	x.delphiApp.Send("CURRENT_WORK_MESSAGE", struct {
-		WorkIndex     int
-		Work          string
-		CreatedAt     time.Time
-		ProductSerial ankat.ProductSerial
-		Level         dataworks.Level
-		Text          string
-	}{
-		workIndex, work, time.Now(), productSerial, level, text,
-	})
 }

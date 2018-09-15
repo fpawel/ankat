@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/fpawel/ankat"
-	"github.com/fpawel/ankat/ui/uiworks"
+	"github.com/fpawel/ankat/internal/ankat"
+	"github.com/fpawel/ankat/internal/ui/uiworks"
 	"github.com/fpawel/termochamber"
 	"github.com/pkg/errors"
 	"os"
