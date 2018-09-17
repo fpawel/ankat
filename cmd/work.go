@@ -234,17 +234,15 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 	productErrors := map[ProductError]struct{}{}
 
 	return x.uiWorks.Delay(what, duration, func() error {
-		products := x.DBProducts.CheckedProducts()
-		if len(products) == 0 {
+		checkedProducts := x.DBProducts.CheckedProducts()
+		if len(checkedProducts) == 0 {
 			return errors.New(what + ": " + "не отмечено ни одного прибора")
 		}
 
-
-
-		if iP >= len(products) {
+		if iP >= len(checkedProducts) {
 			iP, iV = 0, 0
 		}
-		x.doProductDevice(products[iP], func(productSerial ankat.ProductSerial, text string) {
+		x.doProductDevice(checkedProducts[iP], func(productSerial ankat.ProductSerial, text string) {
 			k := ProductError{productSerial, text}
 			if _, exists := productErrors[k]; !exists {
 				x.uiWorks.WriteError(productSerial, what+": "+text)
@@ -262,7 +260,7 @@ func (x app) doDelayWithReadProducts(what string, duration time.Duration) error 
 			return nil
 		}
 		iV = 0
-		if iP < len(products)-1 {
+		if iP < len(checkedProducts)-1 {
 			iP++
 		} else {
 			iP = 0
