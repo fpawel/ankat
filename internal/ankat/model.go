@@ -2,6 +2,7 @@ package ankat
 
 import (
 	"fmt"
+	"github.com/fpawel/guartutils/modbus"
 	"strconv"
 )
 
@@ -11,13 +12,13 @@ type ProductSerial int
 
 type Sect string
 
-type Var int
+type Var = modbus.Var
 
 type GasCode int
 
 type Point int
 
-type Coefficient int
+type Coefficient = modbus.Coefficient
 
 type SectInfo struct {
 	What string

@@ -135,7 +135,7 @@ func (x *app) registerRoutes(){
 				Items []a
 			}
 			for _,v := range ankat.Commands() {
-				payload.Items = append(payload.Items, a{v, v.What()})
+				payload.Items = append(payload.Items, a{v, ankat.FormatCmd(v)})
 			}
 			return payload
 		},

@@ -53,7 +53,7 @@ func (x app) sendProductConnectionError(productOrdinal int, text string)  {
 
 func (x app) sendCmd(cmd ankat.Cmd, value float64) error {
 	x.uiWorks.WriteLogf(0, worklog.Info, "Отправка команды %s: %v",
-		cmd.What(), value)
+		ankat.FormatCmd(cmd), value)
 	return x.doEachProductDevice(x.uiWorks.WriteError, func(p productDevice) error {
 		_ = p.sendCmdLog(cmd, value)
 		return nil

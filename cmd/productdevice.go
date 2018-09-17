@@ -132,16 +132,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 }
 
 func (x productDevice) readCoefficient(coefficient ankat.Coefficient) ( float64,  error) {
-
-	req := modbus.NewReadCoefficient(1, int(coefficient))
-	bytes, err := x.port.Fetch(req.Bytes())
-
-	if err != nil {
-		return 0, err
-	}
-
-	value, err := req.ParseBCDValue(bytes)
-
+	value, err := modbus.ReadCoefficient(x.port, 1, coefficient)
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
 	x.notifyCoefficient(coefficient, value, err)
 
@@ -163,13 +154,8 @@ func (x productDevice) readAndSaveCoefficient(coefficient ankat.Coefficient) (va
 }
 
 func (x productDevice) readVar(ankatVar ankat.Var) (value float64, err error) {
-	req := modbus.NewReadBCD(1, uint16(ankatVar))
-	var bytes []byte
-	bytes, err = x.port.Fetch(req.Bytes())
-	if err == nil {
-		value, err = req.ParseBCDValue(bytes)
-		value += math.Sin(float64(time.Now().Second()) / 60)
-	}
+	value,err = modbus.Read3BCD(x.port, 1, ankatVar)
+	value += math.Sin(float64(time.Now().Second()) / 60)
 	varInfo := x.app.DBProducts.Var(ankatVar)
 	x.app.delphiApp.Send("READ_VAR", readProductVarResult{
 		VarOrder:      varInfo.Ordinal,
@@ -248,19 +234,7 @@ func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 
 func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 
-	req := modbus.NewWriteCmdBCD(1, 0x16, uint16(cmd), value)
-	b, err := x.port.Fetch(req.Bytes())
-	if err == nil {
-		err = req.CheckResponse16(b)
-	}
-	if fetch.NoAnswer(err) || modbus.ProtocolError(err) {
-		//x.workCtrl.WriteLog(x.product.Serial, worklog.Warning, err.Error())
-		req = modbus.NewWriteCmdBCD(1, 0x10, uint16(cmd), value)
-		b, err = x.port.Fetch(req.Bytes())
-		if err == nil {
-			err = req.CheckResponse16(b)
-		}
-	}
+	err := modbus.Write32Float_0x10_0x16(x.port, 1, cmd, value)
 	if fetch.Canceled(err) {
 		return nil
 	}
@@ -270,9 +244,9 @@ func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 func (x productDevice) sendCmdLog(cmd ankat.Cmd, value float64) error {
 	err := x.sendCmd(cmd, value)
 	if err == nil {
-		x.writeInfof("%s: %v", cmd.What(), value)
+		x.writeInfof("%s: %v", ankat.FormatCmd(cmd), value)
 	} else {
-		x.writeErrorf("%s: %v: %v", cmd.What(), value, err)
+		x.writeErrorf("%s: %v: %v", ankat.FormatCmd(cmd), value, err)
 	}
 	return err
 }
@@ -299,11 +273,11 @@ func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
 
 func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
 
-	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), value)
-
+	err := modbus.WriteCoefficient_0x10_0x16(x.port, 1, coefficient, value)
 	if fetch.Canceled(err) {
 		return nil
 	}
+
 	x.notifyConnected(err, "K%d:=%v", coefficient, float6(value))
 	if err == nil {
 		x.SetCoefficientValue(coefficient, float6(value))
@@ -354,9 +328,9 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 
 func newAnkatSetWorkModeRequest(mode float64) modbus.Request {
 	return modbus.Request{
-		Cmd:  0x16,
-		Addr: 1,
-		Data: append([]byte{0xA0, 0, 0, 2, 4}, modbus.BCD6(mode)...),
+		ProtocolCommandCode: 0x16,
+		Addr:                1,
+		Data:                append([]byte{0xA0, 0, 0, 2, 4}, modbus.BCD6(mode)...),
 	}
 }
 

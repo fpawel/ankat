@@ -1,24 +1,27 @@
 package ankat
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/fpawel/guartutils/modbus"
+)
 
-type Cmd int
+type Cmd = modbus.DeviceCommandCode
 
 
 const (
-	CmdCorrectNull1 = 1
-	CmdCorrectEnd1 = 2
-	CmdCorrectNull2 = 4
-	CmdCorrectEnd2 = 5
-	CmdSetAddr = 7
-	CmdNorm1 = 8
-	CmdNorm2 = 9
-	CmdSetGas1 = 16
-	CmdSetGas2 = 17
-	CmdCorrectTemperatureSensorOffset = 20
+	CmdCorrectNull1 Cmd = 1
+	CmdCorrectEnd1 Cmd = 2
+	CmdCorrectNull2 Cmd = 4
+	CmdCorrectEnd2 Cmd = 5
+	CmdSetAddr Cmd = 7
+	CmdNorm1 Cmd = 8
+	CmdNorm2 Cmd = 9
+	CmdSetGas1 Cmd = 16
+	CmdSetGas2 Cmd = 17
+	CmdCorrectTemperatureSensorOffset Cmd = 20
 )
 
-func (x Cmd) What() string {
+func FormatCmd(x Cmd) string {
 
 	if x > 0x8000 {
 		return fmt.Sprintf("команда %d: запись коэффициента %d", x, x - 0x8000)
