@@ -14,7 +14,18 @@ func AppDataFileName(filename string) string {
 }
 
 func AppFileName(filename string) string {
+	if _, err := os.Stat(filepath.Join(exeDir(), filename)); !os.IsNotExist(err){
+		return filepath.Join(exeDir(), filename)
+	}
 	return filepath.Join(MustAppDir(), filename)
+}
+
+func exeDir() string {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+	return dir
 }
 
 const AppName = "ankat"
@@ -40,12 +51,12 @@ func MustAppDir() string {
 }
 
 func mustDir(dir string) string {
-	if _, err := os.Stat(dir); err != nil {
-		if os.IsNotExist(err) { // создать каталог если его нет
-			os.Mkdir(dir, os.ModePerm)
-		} else {
-			panic(err)
-		}
+	_,err := os.Stat(dir)
+	if os.IsNotExist(err) { // создать каталог если его нет
+		err = os.MkdirAll(dir, os.ModePerm)
+	}
+	if err != nil {
+		panic(err)
 	}
 	return dir
 }

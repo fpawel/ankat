@@ -1,4 +1,4 @@
-package cfg
+package config
 
 const SQLConfig = `
 PRAGMA foreign_keys = ON;
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS section (
   sort_order   INTEGER NOT NULL UNIQUE CHECK (sort_order >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS cfg (
+CREATE TABLE IF NOT EXISTS config (
   section_name  TEXT    NOT NULL CHECK (section_name != ''),
   property_name TEXT    NOT NULL CHECK (property_name != ''),
   hint          TEXT    NOT NULL CHECK (hint != ''),
@@ -38,11 +38,11 @@ CREATE TABLE IF NOT EXISTS value_list (
 
 CREATE TRIGGER IF NOT EXISTS trigger_set_default_value
   AFTER INSERT
-  ON cfg
+  ON config
   FOR EACH ROW
   WHEN (NEW.value IS NULL)
 BEGIN
-  UPDATE cfg
+  UPDATE config
   SET value = new.default_value
   WHERE section_name = new.section_name
     AND property_name = new.property_name;
@@ -59,7 +59,7 @@ VALUES (0, 'party', 'Параметры партии'),
 
 INSERT
 OR IGNORE
-    INTO cfg (sort_order, section_name, property_name, hint, type, min, max, default_value)
+    INTO config (sort_order, section_name, property_name, hint, type, min, max, default_value)
 VALUES (0, 'automatic_work', 'delay_blow_nitrogen', 'Длит. продувки N2, мин.', 'integer', 1, 10, 3),
        (1, 'automatic_work', 'delay_blow_gas', 'Длит. продувки изм. газа, мин.', 'integer', 1, 10, 3),
        (2, 'automatic_work', 'delay_temperature', 'Длит. выдержки на температуре, часов', 'integer', 1, 5, 3),

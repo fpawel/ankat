@@ -1,4 +1,4 @@
-package cfg
+package config
 
 import (
 	"github.com/fpawel/ankat/internal/dbutils"
@@ -13,7 +13,7 @@ type Section struct {
 }
 
 func (x Section) GetValue( dest interface{}, propertyName string ) {
-	dbutils.MustGet( x.DB, dest, `SELECT value FROM cfg WHERE section_name = ? AND property_name = ?;`,
+	dbutils.MustGet( x.DB, dest, `SELECT value FROM config WHERE section_name = ? AND property_name = ?;`,
 		x.Section, propertyName, )
 }
 

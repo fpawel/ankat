@@ -1,7 +1,7 @@
-package cfg
+package config
 
 const SQLComport = `
-INSERT OR IGNORE INTO cfg ( sort_order, section_name, property_name, hint, type, min, max, default_value, value)
+INSERT OR IGNORE INTO config ( sort_order, section_name, property_name, hint, type, min, max, default_value, value)
 VALUES
    (0, :section_name, 'port', 'имя СОМ-порта', 'comport_name', NULL, NULL, 'COM1', 'COM1' ),
    (1, :section_name, 'baud', 'скорость передачи, бод', 'baud', 2400, 256000, 9600, 9600 ),

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/ankat/internal/ankat"
-	"github.com/fpawel/ankat/internal/db/cfg"
+	"github.com/fpawel/ankat/internal/db/config"
 	"github.com/fpawel/ankat/internal/db/products"
 	"github.com/fpawel/ankat/internal/db/worklog"
 	"github.com/fpawel/ankat/internal/ui/uiworks"
@@ -32,12 +32,12 @@ type app struct {
 
 type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
-func runApp() {
+func runApp(waitPeer bool) {
 
 
 	x := &app{
 		dbProducts: products.MustOpen(ankat.AppDataFileName( "products.db")),
-		dbCfg:      cfg.MustOpen(ankat.AppDataFileName( "config.db")),
+		dbCfg:      config.MustOpen(ankat.AppDataFileName( "config.db")),
 		delphiApp:  procmq.MustOpen("ANKAT"),
 		comports:   comport.Comports{},
 	}
@@ -65,6 +65,13 @@ func runApp() {
 	x.registerRoutes()
 
 	fmt.Print("peer: connecting...")
+
+	if !waitPeer {
+		if err := exec.Command(ankat.AppFileName("ankatui.exe")).Start(); err != nil {
+			panic(err)
+		}
+	}
+
 	if err := x.delphiApp.Connect(); err != nil {
 		panic(err)
 	}
@@ -91,8 +98,8 @@ func runApp() {
 	wg.Wait()
 }
 
-func (x *app) ConfigSect(sect string) cfg.Section {
-	return cfg.Section{
+func (x *app) ConfigSect(sect string) config.Section {
+	return config.Section{
 		Section:sect,
 		DB:x.dbCfg,
 	}

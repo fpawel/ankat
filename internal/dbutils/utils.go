@@ -2,6 +2,7 @@ package dbutils
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -37,5 +38,6 @@ func MustOpen(fileName, driverName string) (db *sqlx.DB) {
 	if err := db.Ping(); err != nil {
 		panic(err)
 	}
+	fmt.Println("DB:", fileName)
 	return
 }
