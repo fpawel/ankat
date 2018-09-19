@@ -1,4 +1,5 @@
 SET dir=%HOMEDRIVE%%HOMEPATH%\.ankat
+copy %GOPATH%\bin\pp.exe %dir%\pp.exe
 SET exe=%dir%\ankathost.exe
 SET buildExe=%Temp%\buildankat32.exe
 if exist %exe% (del %exe%)
