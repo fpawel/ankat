@@ -8,8 +8,10 @@ import (
 
 func main() {
 	waitPeer := false
+	flag.BoolVar(&waitPeer, "waitpeer", false,  "wait for peer application")
 	flag.Parse()
-	flag.BoolVar(&waitPeer, "wait_peer", false,  "wait for peer application")
 	runApp(waitPeer)
 }
+
+
 

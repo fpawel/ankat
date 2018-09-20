@@ -1,1 +1,0 @@
-ankathost 2>&1 | pp

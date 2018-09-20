@@ -8,9 +8,11 @@ import (
 	"github.com/fpawel/ankat/internal/db/worklog"
 	"github.com/fpawel/ankat/internal/ui/uiworks"
 	"github.com/fpawel/ankat/internal/view"
+	"github.com/fpawel/goutils/winapp"
 	"github.com/fpawel/guartutils/comport"
 	"github.com/fpawel/procmq"
 	"github.com/jmoiron/sqlx"
+	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"os/exec"
 	"strconv"
@@ -34,19 +36,23 @@ type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp(waitPeer bool) {
 
-
+	delphiApp,err := procmq.Open("ANKAT")
+	if err != nil {
+		winapp.MsgBox("Нельзя запустить второй экземпляр приложения ANKAT", "ANKAT", win.MB_ICONERROR)
+		return
+	}
 	x := &app{
-		dbProducts: products.MustOpen(ankat.AppDataFileName( "products.db")),
-		dbCfg:      config.MustOpen(ankat.AppDataFileName( "config.db")),
-		delphiApp:  procmq.MustOpen("ANKAT"),
+		dbProducts: products.MustOpen(ankat.AppName.DataFileName("products.db", )),
+		dbCfg:      config.MustOpen(ankat.AppName.DataFileName( "config.db" )),
+		delphiApp:  delphiApp,
 		comports:   comport.Comports{},
 	}
 	x.DBProducts.DB = x.dbProducts
 
 
 	if !x.DBProducts.PartyExists(){
-		fmt.Println("must create party", ankat.AppFileName("ankat_newparty.exe"))
-		cmd := exec.Command(ankat.AppFileName("ankat_newparty.exe") )
+		fmt.Println("must create party", )
+		cmd := exec.Command(ankat.AppName.FileName("ankat_newparty.exe") )
 		if err := cmd.Start(); err != nil {
 			panic(err)
 		}
@@ -64,18 +70,20 @@ func runApp(waitPeer bool) {
 	// роуты, через которые приходят команды от клиентского приложения
 	x.registerRoutes()
 
-	fmt.Print("peer: connecting...")
-
-	if !waitPeer {
-		if err := exec.Command(ankat.AppFileName("ankatui.exe")).Start(); err != nil {
+	if waitPeer {
+		fmt.Println("peer: connecting...")
+	} else {
+		if err := exec.Command(ankat.AppName.FileName("ankatui.exe")).Start(); err != nil {
 			panic(err)
 		}
+		fmt.Println("peer: started")
 	}
 
 	if err := x.delphiApp.Connect(); err != nil {
 		panic(err)
 	}
 	fmt.Println("peer: connected")
+
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -94,7 +102,7 @@ func runApp(waitPeer bool) {
 		wg.Done()
 	}()
 
-	fmt.Println("peer application started")
+
 	wg.Wait()
 }
 
