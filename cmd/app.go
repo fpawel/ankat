@@ -36,30 +36,33 @@ type errorLogger = func(productSerial ankat.ProductSerial, text string)
 
 func runApp(waitPeer bool) {
 
-	delphiApp,err := procmq.Open("ANKAT")
+	const (
+		appName winapp.AnalitpriborAppName = "ankat"
+	)
+
+	delphiApp, err := procmq.Open("ANKAT")
 	if err != nil {
 		winapp.MsgBox("Нельзя запустить второй экземпляр приложения ANKAT", "ANKAT", win.MB_ICONERROR)
 		return
 	}
 	x := &app{
-		dbProducts: products.MustOpen(ankat.AppName.DataFileName("products.db", )),
-		dbCfg:      config.MustOpen(ankat.AppName.DataFileName( "config.db" )),
+		dbProducts: products.MustOpen(appName.DataFileName("products.db")),
+		dbCfg:      config.MustOpen(appName.DataFileName("config.db")),
 		delphiApp:  delphiApp,
 		comports:   comport.Comports{},
 	}
 	x.DBProducts.DB = x.dbProducts
 
-
-	if !x.DBProducts.PartyExists(){
-		fmt.Println("must create party", )
-		cmd := exec.Command(ankat.AppName.FileName("ankat_newparty.exe") )
+	if !x.DBProducts.PartyExists() {
+		fmt.Println("must create party")
+		cmd := exec.Command(appName.FileName("ankat_newparty.exe"))
 		if err := cmd.Start(); err != nil {
 			panic(err)
 		}
 		if err := cmd.Wait(); err != nil {
 			panic(err)
 		}
-		if !x.DBProducts.PartyExists(){
+		if !x.DBProducts.PartyExists() {
 			fmt.Println("not created")
 			return
 		}
@@ -73,7 +76,7 @@ func runApp(waitPeer bool) {
 	if waitPeer {
 		fmt.Println("peer: connecting...")
 	} else {
-		if err := exec.Command(ankat.AppName.FileName("ankatui.exe")).Start(); err != nil {
+		if err := exec.Command(appName.FileName("ankatui.exe")).Start(); err != nil {
 			panic(err)
 		}
 		fmt.Println("peer: started")
@@ -83,7 +86,6 @@ func runApp(waitPeer bool) {
 		panic(err)
 	}
 	fmt.Println("peer: connected")
-
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -102,14 +104,13 @@ func runApp(waitPeer bool) {
 		wg.Done()
 	}()
 
-
 	wg.Wait()
 }
 
 func (x *app) ConfigSect(sect string) config.Section {
 	return config.Section{
-		Section:sect,
-		DB:x.dbCfg,
+		Section: sect,
+		DB:      x.dbCfg,
 	}
 }
 
@@ -138,10 +139,10 @@ func (x *app) sendMessage(productSerial ankat.ProductSerial, level worklog.Level
 }
 
 // registerRoutes создаётроуты, через которые приходят команды от клиентского приложения
-func (x *app) registerRoutes(){
-	for msg,fun := range map[string] func([]byte) interface{} {
+func (x *app) registerRoutes() {
+	for msg, fun := range map[string]func([]byte) interface{}{
 
-		"MODBUS_COMMANDS": func([]byte) interface {}{
+		"MODBUS_COMMANDS": func([]byte) interface{} {
 			type a = struct {
 				Cmd ankat.Cmd
 				Str string
@@ -149,18 +150,18 @@ func (x *app) registerRoutes(){
 			var payload struct {
 				Items []a
 			}
-			for _,v := range ankat.Commands() {
+			for _, v := range ankat.Commands() {
 				payload.Items = append(payload.Items, a{v, ankat.FormatCmd(v)})
 			}
 			return payload
 		},
 
-		"CURRENT_WORK_STOP":  func([]byte) interface {}{
+		"CURRENT_WORK_STOP": func([]byte) interface{} {
 			x.uiWorks.Interrupt()
 			x.comports.Interrupt()
 			return nil
 		},
-		"RUN_MAIN_WORK": func(b []byte) interface {}{
+		"RUN_MAIN_WORK": func(b []byte) interface{} {
 			n, err := strconv.ParseInt(string(b), 10, 64)
 			if err != nil {
 				panic(err)
@@ -168,19 +169,19 @@ func (x *app) registerRoutes(){
 			x.runWork(int(n), x.mainWork())
 			return nil
 		},
-		"READ_VARS": func([]byte) interface {} {
+		"READ_VARS": func([]byte) interface{} {
 			x.runReadVarsWork()
 			return nil
 		},
-		"READ_COEFFICIENTS": func([]byte) interface {}{
+		"READ_COEFFICIENTS": func([]byte) interface{} {
 			x.runReadCoefficientsWork()
 			return nil
 		},
-		"WRITE_COEFFICIENTS": func([]byte) interface {}{
+		"WRITE_COEFFICIENTS": func([]byte) interface{} {
 			x.runWriteCoefficientsWork()
 			return nil
 		},
-		"SET_COEFFICIENT": func(b []byte) interface {}{
+		"SET_COEFFICIENT": func(b []byte) interface{} {
 			var a struct {
 				Product, Coefficient int
 			}
@@ -188,7 +189,7 @@ func (x *app) registerRoutes(){
 			x.runSetCoefficient(a.Product, a.Coefficient)
 			return nil
 		},
-		"MODBUS_CMD": func(b []byte) interface {}{
+		"MODBUS_CMD": func(b []byte) interface{} {
 			var a struct {
 				Cmd ankat.Cmd
 				Arg float64
@@ -199,12 +200,12 @@ func (x *app) registerRoutes(){
 			}))
 			return nil
 		},
-		"CURRENT_WORKS": func(bytes []byte) interface {} {
+		"CURRENT_WORKS": func(bytes []byte) interface{} {
 			return x.mainWork().Task().Info(x.dbProducts)
 		},
-		"PARTY_INFO": func(bytes []byte) interface {} {
+		"PARTY_INFO": func(bytes []byte) interface{} {
 			partyID := ankat.PartyID(mustParseInt64(bytes))
-			str := view.Party( x.dbProducts, partyID )
+			str := view.Party(x.dbProducts, partyID)
 			return str
 		},
 	} {
