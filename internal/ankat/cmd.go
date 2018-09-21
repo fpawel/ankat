@@ -2,7 +2,7 @@ package ankat
 
 import (
 	"fmt"
-	"github.com/fpawel/guartutils/modbus"
+	"github.com/fpawel/goutils/serial/modbus"
 )
 
 type Cmd = modbus.DeviceCommandCode

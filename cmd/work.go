@@ -6,9 +6,9 @@ import (
 	"github.com/fpawel/ankat/internal/db/products"
 	"github.com/fpawel/ankat/internal/db/worklog"
 	"github.com/fpawel/ankat/internal/ui/uiworks"
-	"github.com/fpawel/guartutils/comport"
-	"github.com/fpawel/guartutils/modbus"
-	"github.com/fpawel/termochamber"
+	"github.com/fpawel/goutils/serial/comport"
+	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/fpawel/goutils/serial/termochamber"
 	"github.com/pkg/errors"
 	"time"
 )
@@ -114,7 +114,6 @@ func (x app) runReadCoefficientsWork() {
 						Coefficient:v.Coefficient,
 						Value:value,
 					})
-
 				}
 			}
 			return nil

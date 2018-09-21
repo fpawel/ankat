@@ -3,7 +3,7 @@ package uiworks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fpawel/procmq"
+	"github.com/fpawel/goutils/procmq"
 	"time"
 
 	"github.com/fpawel/ankat/internal/ankat"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/fpawel/ankat/internal/ankat"
 	"github.com/fpawel/ankat/internal/ui/uiworks"
-	"github.com/fpawel/termochamber"
+	"github.com/fpawel/goutils/serial/termochamber"
 	"github.com/pkg/errors"
 	"os"
 	"time"

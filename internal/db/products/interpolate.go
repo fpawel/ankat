@@ -3,7 +3,7 @@ package products
 import (
 	"fmt"
 	"github.com/fpawel/ankat/internal/ankat"
-	"github.com/fpawel/numeth"
+	"github.com/fpawel/goutils/numeth"
 	"github.com/pkg/errors"
 )
 

@@ -2,15 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/fpawel/goutils/serial/fetch"
 	"math"
 	"strconv"
 )
 
 
 
-func fmtErr(e error) string {
-	if e != nil {
-		return e.Error()
+func fmtErr(err error) string {
+	if err != nil && !fetch.Canceled(err){
+		return err.Error()
 	}
 	return ""
 }

@@ -2,7 +2,7 @@ package products
 
 import (
 	"github.com/fpawel/ankat/internal/ankat"
-	"github.com/fpawel/ankat/internal/dbutils"
+	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 )
 

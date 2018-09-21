@@ -15,11 +15,10 @@ func main() {
 	//os.Setenv("GOTRACEBACK", "all")
 	exeDir := filepath.Dir(os.Args[0])
 	exeFileName := filepath.Join(exeDir, "ankathost.exe")
-	r, err := panichook.Run(exeFileName, "-waitpeer=true")
+	r, err := panichook.Run(exeFileName, )
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(":\n" + r.Stdout.String())
 	if r.Error == nil {
 		return
 	}

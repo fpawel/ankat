@@ -3,7 +3,7 @@ package products
 import (
 	"fmt"
 	"github.com/fpawel/ankat/internal/ankat"
-	"github.com/fpawel/ankat/internal/dbutils"
+	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 	"time"
 )

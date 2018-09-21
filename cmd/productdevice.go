@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/fpawel/ankat/internal/ankat"
 	"github.com/fpawel/ankat/internal/db/worklog"
-	"github.com/fpawel/guartutils/comport"
-	"github.com/fpawel/guartutils/fetch"
-	"github.com/fpawel/guartutils/modbus"
-	"github.com/fpawel/procmq"
-	"github.com/fpawel/termochamber"
+	"github.com/fpawel/goutils/procmq"
+	"github.com/fpawel/goutils/serial/comport"
+	"github.com/fpawel/goutils/serial/fetch"
+	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/fpawel/goutils/serial/termochamber"
 	"github.com/pkg/errors"
 	"math"
 	"time"
@@ -157,6 +157,7 @@ func (x productDevice) readVar(ankatVar ankat.Var) (value float64, err error) {
 	value,err = modbus.Read3BCD(x.port, 1, ankatVar)
 	value += math.Sin(float64(time.Now().Second()) / 60)
 	varInfo := x.app.DBProducts.Var(ankatVar)
+	x.notifyConnected(err, "%s=%v", varInfo.Name, value)
 	x.app.delphiApp.Send("READ_VAR", readProductVarResult{
 		VarOrder:      varInfo.Ordinal,
 		Var:           ankatVar,

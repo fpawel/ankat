@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/fpawel/ankat/internal/dbutils"
+	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 )
 

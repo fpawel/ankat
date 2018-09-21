@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/fpawel/ankat/internal/dbutils"
-	"github.com/fpawel/guartutils/comport"
+	"github.com/fpawel/goutils/dbutils"
+	"github.com/fpawel/goutils/serial/comport"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
