@@ -69,8 +69,6 @@ func (x app) mainWork() uiworks.Work {
 		),
 	)
 
-	//workMainError := uiworks.L( "Проверка" )
-
 	if x.DBProducts.CurrentParty().IsTwoConcentrationChannels() {
 
 		workTemperature.Children[1].AddChildren(
