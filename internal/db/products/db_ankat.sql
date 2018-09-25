@@ -25,19 +25,20 @@ CREATE TABLE IF NOT EXISTS party (
 );
 
 CREATE VIEW IF NOT EXISTS party_year AS
-  SELECT DISTINCT cast(strftime('%Y', created_at) AS INT) AS year
+  SELECT DISTINCT cast(strftime('%Y', created_at) AS INTEGER) AS year
   FROM party
   ORDER BY year;
 
 CREATE VIEW IF NOT EXISTS party_year_month AS
-  SELECT DISTINCT cast(strftime('%Y', created_at) AS INT) AS year, cast(strftime('%m', created_at) AS INT) AS month
+  SELECT DISTINCT cast(strftime('%Y', created_at) AS INTEGER) AS year,
+                  cast(strftime('%m', created_at) AS INTEGER) AS month
   FROM party
   ORDER BY created_at;
 
 CREATE VIEW IF NOT EXISTS party_year_month_day AS
-  SELECT DISTINCT cast(strftime('%Y', created_at) AS INT) AS year,
-                  cast(strftime('%m', created_at) AS INT) AS month,
-                  cast(strftime('%d', created_at) AS INT) AS day
+  SELECT DISTINCT cast(strftime('%Y', created_at) AS INTEGER) AS year,
+                  cast(strftime('%m', created_at) AS INTEGER) AS month,
+                  cast(strftime('%d', created_at) AS INTEGER) AS day
   FROM party
   ORDER BY created_at;
 
@@ -110,9 +111,9 @@ CREATE TABLE IF NOT EXISTS product_value (
 );
 
 CREATE VIEW IF NOT EXISTS party_info AS
-  SELECT *, cast(strftime('%Y', created_at) AS INT)                                      AS year,
-            cast(strftime('%m', created_at) AS INT)                                      AS month,
-            cast(strftime('%d', created_at) AS INT)                                      AS day,
+  SELECT *, cast(strftime('%Y', created_at) AS INTEGER)                                  AS year,
+            cast(strftime('%m', created_at) AS INTEGER)                                  AS month,
+            cast(strftime('%d', created_at) AS INTEGER)                                  AS day,
             p.product_type_number || ' ' || p.gas1 || ' ' || cast(p.scale1 AS INTEGER)
               || (CASE p.sensors_count
                     WHEN 1 THEN ''
@@ -148,13 +149,13 @@ CREATE VIEW IF NOT EXISTS main_error1 AS
                              WHEN 'SCALE_END' THEN p.concentration_gas6 END END) nominal,
             (CASE a.sensor
                WHEN 1 THEN p.units1
-               WHEN 2 THEN p.units2 END) AS                         units,
+               WHEN 2 THEN p.units2 END) AS                                      units,
             (CASE a.sensor
                WHEN 1 THEN p.gas1
-               WHEN 2 THEN p.gas2 END)   AS                         gas,
+               WHEN 2 THEN p.gas2 END)   AS                                      gas,
             (CASE a.sensor
                WHEN 1 THEN p.scale1
-               WHEN 2 THEN p.scale2 END) AS                         scale_value
+               WHEN 2 THEN p.scale2 END) AS                                      scale_value
   FROM main_error_source a
          INNER JOIN party p ON p.party_id = a.party_id;
 
@@ -392,8 +393,11 @@ VALUES (0, 'VER_PO', 'номер версии ПО'),
        (49, 'KFt', 'смещение датчика температуры микроконтроллера, град.С');
 
 CREATE VIEW IF NOT EXISTS coefficient_enumerated AS
-  SELECT count(*) - 1 AS ordinal, a.coefficient_id AS coefficient_id, a.checked AS checked,
-         a.name AS name, a.description AS description
+  SELECT count(*) - 1     AS ordinal,
+         a.coefficient_id AS coefficient_id,
+         a.checked        AS checked,
+         a.name           AS name,
+         a.description    AS description
   FROM coefficient AS a
          LEFT JOIN coefficient AS b
   WHERE a.coefficient_id >= b.coefficient_id
