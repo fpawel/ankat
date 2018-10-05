@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-//go:generate go run ./gen_sql_str/main.go
+//go:generate go run github.com/fpawel/goutils/dbutils/sqlstr/...
 
 type app struct {
 	uiWorks    uiworks.Runner
