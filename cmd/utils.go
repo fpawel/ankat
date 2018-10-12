@@ -10,7 +10,7 @@ import (
 
 
 func fmtErr(err error) string {
-	if err != nil && !fetch.Canceled(err){
+	if err != nil && !uart.Canceled(err){
 		return err.Error()
 	}
 	return ""

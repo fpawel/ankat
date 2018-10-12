@@ -42,7 +42,7 @@ type readProductCoefficientResult struct {
 type CoefficientValues = map[ankat.Coefficient]float64
 
 func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err error, format string, a ...interface{}) {
-	if fetch.Canceled(err) {
+	if uart.Canceled(err) {
 		return
 	}
 	var b struct {
@@ -116,7 +116,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 
 	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), value)
 
-	if fetch.Canceled(err) {
+	if uart.Canceled(err) {
 		return nil
 	}
 
@@ -221,7 +221,7 @@ func (x productDevice) writeInitCoefficients() error {
 
 func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 	req := newAnkatSetWorkModeRequest(mode)
-	b, err := x.port.Fetch(req.Bytes())
+	b, err := x.port.GetResponse(req.Bytes())
 	if err == nil {
 		err = checkResponseAnkatSetWorkMode(req, b)
 	}
@@ -236,7 +236,7 @@ func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 
 	err := modbus.Write32Float_0x10_0x16(x.port, 1, cmd, value)
-	if fetch.Canceled(err) {
+	if uart.Canceled(err) {
 		return nil
 	}
 	return err
@@ -275,7 +275,7 @@ func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
 func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
 
 	err := modbus.WriteCoefficient_0x10_0x16(x.port, 1, coefficient, value)
-	if fetch.Canceled(err) {
+	if uart.Canceled(err) {
 		return nil
 	}
 

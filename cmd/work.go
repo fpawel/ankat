@@ -294,7 +294,7 @@ func (x app) switchGas(n ankat.GasCode) error {
 		return errors.Wrap(err, "не удалось открыть СОМ порт газового блока")
 	}
 	req := modbus.NewSwitchGasOven(byte(n))
-	_, err = port.Fetch(req.Bytes())
+	_, err = port.GetResponse(req.Bytes())
 	if err != nil {
 		return x.promptErrorStopWork(errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name))
 	}
