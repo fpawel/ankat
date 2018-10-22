@@ -6,9 +6,9 @@ import (
 	"github.com/fpawel/ankat/internal/db/worklog"
 	"github.com/fpawel/goutils/procmq"
 	"github.com/fpawel/goutils/serial/comport"
-	"github.com/fpawel/goutils/serial/fetch"
 	"github.com/fpawel/goutils/serial/modbus"
 	"github.com/fpawel/goutils/serial/termochamber"
+	"github.com/fpawel/goutils/serial/uart"
 	"github.com/pkg/errors"
 	"math"
 	"time"
@@ -42,7 +42,7 @@ type readProductCoefficientResult struct {
 type CoefficientValues = map[ankat.Coefficient]float64
 
 func notifyProductConnected(productOrdinal int, pipe *procmq.ProcessMQ, err error, format string, a ...interface{}) {
-	if uart.Canceled(err) {
+	if err == uart.ErrorCanceled {
 		return
 	}
 	var b struct {
@@ -116,7 +116,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 
 	err := x.sendCmd(ankat.Cmd((0x80<<8)+coefficient), value)
 
-	if uart.Canceled(err) {
+	if err == uart.ErrorCanceled {
 		return nil
 	}
 
@@ -132,7 +132,7 @@ func (x productDevice) writeCoefficient(coefficient ankat.Coefficient) error {
 }
 
 func (x productDevice) readCoefficient(coefficient ankat.Coefficient) ( float64,  error) {
-	value, err := modbus.ReadCoefficient(x.port, 1, coefficient)
+	value, err := modbus.ReadCoefficient(x.port.NewResponseReader(), 1, coefficient)
 	x.notifyConnected(err, "K%d=%v", coefficient, value)
 	x.notifyCoefficient(coefficient, value, err)
 
@@ -154,7 +154,7 @@ func (x productDevice) readAndSaveCoefficient(coefficient ankat.Coefficient) (va
 }
 
 func (x productDevice) readVar(ankatVar ankat.Var) (value float64, err error) {
-	value,err = modbus.Read3BCD(x.port, 1, ankatVar)
+	value,err = modbus.Read3BCD(x.port.NewResponseReader(), 1, ankatVar)
 	value += math.Sin(float64(time.Now().Second()) / 60)
 	varInfo := x.app.DBProducts.Var(ankatVar)
 	x.notifyConnected(err, "%s=%v", varInfo.Name, value)
@@ -221,7 +221,7 @@ func (x productDevice) writeInitCoefficients() error {
 
 func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 	req := newAnkatSetWorkModeRequest(mode)
-	b, err := x.port.GetResponse(req.Bytes())
+	b, err := x.port.NewResponseReader().GetResponse(req.Bytes())
 	if err == nil {
 		err = checkResponseAnkatSetWorkMode(req, b)
 	}
@@ -235,8 +235,8 @@ func (x productDevice) sendSetWorkModeCmd(mode float64) error {
 
 func (x productDevice) sendCmd(cmd ankat.Cmd, value float64) error {
 
-	err := modbus.Write32Float_0x10_0x16(x.port, 1, cmd, value)
-	if uart.Canceled(err) {
+	err := modbus.Write32Float_0x10_0x16(x.port.NewResponseReader(), 1, cmd, value)
+	if err == uart.ErrorCanceled {
 		return nil
 	}
 	return err
@@ -274,8 +274,8 @@ func (x productDevice) writeSectCoefficients(sect ankat.Sect) error {
 
 func (x productDevice) writeCoefficientValue(coefficient ankat.Coefficient, value float64) error {
 
-	err := modbus.WriteCoefficient_0x10_0x16(x.port, 1, coefficient, value)
-	if uart.Canceled(err) {
+	err := modbus.WriteCoefficient1016(x.port.NewResponseReader(), 1, coefficient, value)
+	if err == uart.ErrorCanceled {
 		return nil
 	}
 
@@ -303,7 +303,7 @@ func (x productDevice) doAdjustTemperatureCPU(portTermo *comport.Port, attemptNu
 		return wrapErr(errors.Wrap(err, "не удалось считать коэффициент 49"))
 	}
 
-	temperatureChamber, err := termochamber.T800Read(portTermo)
+	temperatureChamber, err := termochamber.T800Read(portTermo.NewResponseReader())
 	if err != nil {
 		return wrapErr(errors.Wrap(err, "не удалось считать температуру термокамеры"))
 	}

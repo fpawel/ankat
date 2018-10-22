@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/fpawel/goutils/serial/fetch"
+	"github.com/fpawel/goutils/serial/uart"
 	"math"
 	"strconv"
 )
@@ -10,7 +10,7 @@ import (
 
 
 func fmtErr(err error) string {
-	if err != nil && !uart.Canceled(err){
+	if err != nil && err !=uart.ErrorCanceled {
 		return err.Error()
 	}
 	return ""
