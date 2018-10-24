@@ -21,9 +21,9 @@ func (x Section) Comport() (c comport.Config) {
 	c.Serial.ReadTimeout = time.Millisecond
 	c.Serial.Name = x.String("port")
 	c.Serial.Baud = x.Int("baud")
-	c.Fetch.ReadTimeout = x.Millisecond("timeout")
-	c.Fetch.ReadByteTimeout = x.Millisecond("byte_timeout")
-	c.Fetch.MaxAttemptsRead = x.Int("repeat_count")
+	c.Uart.ReadTimeout = x.Millisecond("timeout")
+	c.Uart.ReadByteTimeout = x.Millisecond("byte_timeout")
+	c.Uart.MaxAttemptsRead = x.Int("repeat_count")
 	c.BounceTimeout = x.Millisecond("bounce_timeout")
 	return
 }

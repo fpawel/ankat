@@ -294,7 +294,7 @@ func (x app) switchGas(n ankat.GasCode) error {
 		return errors.Wrap(err, "не удалось открыть СОМ порт газового блока")
 	}
 	req := modbus.NewSwitchGasOven(byte(n))
-	_, err = port.NewResponseReader().GetResponse(req.Bytes())
+	_, err = port.GetResponse(req.Bytes())
 	if err != nil {
 		return x.promptErrorStopWork(errors.Wrapf(err, "нет связи c газовым блоком через %s", port.Config().Serial.Name))
 	}
@@ -321,7 +321,7 @@ func (x app) setupTemperature(temperature float64) error {
 		temperature-deltaTemperature, temperature+deltaTemperature,
 		x.ConfigSect("automatic_work").Minute("timeout_temperature"),
 		func() (float64, error) {
-			return termochamber.T800Read(port.NewResponseReader())
+			return termochamber.T800Read(port)
 		})
 }
 

@@ -158,7 +158,7 @@ func (x *app) registerRoutes() {
 
 		"CURRENT_WORK_STOP": func([]byte) interface{} {
 			x.uiWorks.Interrupt()
-			x.comports.Interrupt()
+			x.comports.Cancel()
 			return nil
 		},
 		"RUN_MAIN_WORK": func(b []byte) interface{} {
