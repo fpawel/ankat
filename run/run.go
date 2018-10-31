@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 	log.Println("ERROR:", r.Error, ":\n", r.Panic.String())
-	log.Println("ERROR LOG FILE:", r.ExeFileName)
+	log.Println("ERROR LOG FILE:", r.ErrorFileName)
 	str := r.Panic.String() + "\n" + r.Error.Error() + "\n" + r.ErrorFileName
 	winapp.MsgBox(str, "АНКАТ", win.MB_ICONERROR)
 }
