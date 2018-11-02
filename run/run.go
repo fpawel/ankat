@@ -2,8 +2,6 @@ package main
 
 import (
 	"github.com/fpawel/goutils/panichook"
-	"github.com/fpawel/goutils/winapp"
-	"github.com/lxn/win"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,15 +13,5 @@ func main() {
 	//os.Setenv("GOTRACEBACK", "all")
 	exeDir := filepath.Dir(os.Args[0])
 	exeFileName := filepath.Join(exeDir, "ankathost.exe")
-	r, err := panichook.Run(exeFileName, )
-	if err != nil {
-		log.Fatal(err)
-	}
-	if r.Error == nil {
-		return
-	}
-	log.Println("ERROR:", r.Error, ":\n", r.Panic.String())
-	log.Println("ERROR LOG FILE:", r.ErrorFileName)
-	str := r.Panic.String() + "\n" + r.Error.Error() + "\n" + r.ErrorFileName
-	winapp.MsgBox(str, "АНКАТ", win.MB_ICONERROR)
+	panichook.Run(exeFileName, )
 }
